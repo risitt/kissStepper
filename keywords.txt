@@ -1,0 +1,43 @@
+#######################################
+# Syntax Coloring Map For kissStepper
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+kissStepper	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+begin	KEYWORD2
+enable	KEYWORD2
+disable	KEYWORD2
+setDriveMode	KEYWORD2
+getDriveMode	KEYWORD2
+setMaxRPM	KEYWORD2
+getMaxRPM	KEYWORD2
+getCurRPM	KEYWORD2
+work	KEYWORD2
+moveTo	KEYWORD2
+moveForward	KEYWORD2
+moveBackward	KEYWORD2
+stop	KEYWORD2
+hardStop	KEYWORD2
+getPos	KEYWORD2
+getTarget	KEYWORD2
+isEnabled	KEYWORD2
+setAccel	KEYWORD2
+getAccel	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
+FULL	LITERAL1
+HALF	LITERAL1
+QUARTER	LITERAL1
+EIGHTH	LITERAL1
+SIXTEENTH	LITERAL1
