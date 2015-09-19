@@ -105,7 +105,7 @@ True if the command was accepted, otherwise false.
 
 ## void stop(void)
 
-Tells the motor to stop. If using acceleration, it will not stop right away, but will decelerate at the chosen rate, continuining to move for some distance.
+Tells the motor to stop. If using acceleration, it will not stop right away, but will decelerate at the chosen rate, continuing to move for some distance.
 ### Example:
 ```C++
 myStepper.stop();
@@ -227,7 +227,7 @@ myStepper.enable();
 
 ## void disable(void)
 
-Disables the motor controller. Can be useful for saving power or minimizing heat when the motor is not actively being used. The motor controller will automatically turn itself on again if asked to move. When the motor controller is disabled, it may re-seat itself slightly, especially if using microstepping with a low friction load.
+Disables the motor controller. Can be useful for saving power or minimizing heat when the motor is not actively being used. The motor controller will automatically turn itself on again if asked to move. When the motor controller is disabled, the motor may re-seat itself (move out of place) slightly, especially if using microstepping with a low friction load.
 
 ### Example:
 ```C++
