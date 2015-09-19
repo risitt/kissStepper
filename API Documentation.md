@@ -3,6 +3,7 @@
 For a fully working example that implements most of the API methods below, please see the "SerialControl" sketch in the examples folder.
 
 The simplest way to use kissStepper is as follows:
+
 1. Instantiate a new instance in the global scope
 2. Call begin() with your chosen settings in your sketch's setup() routine
 3. Place work() in your loop() routine where it will be repeatedly called at regular intervals
