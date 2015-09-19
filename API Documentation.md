@@ -15,8 +15,8 @@ You must create an instance of the kissStepper class before you can interact wit
 ### Example:
 ```C++
 kissStepper myStepper(pinEnable, pinDir, pinStep, pinMS1, pinMS2, pinMS3); // general syntax
-kissStepper myStepperTwo(7, 3, 4, 5, 6) // Easy Driver with software control of enable, MS1, and MS2 pins
-kissStepper myStepperThree(255, 8, 9) // Bare minimum - only two pins used
+kissStepper myStepperTwo(7, 3, 4, 5, 6); // Easy Driver with software control of enable, MS1, and MS2 pins
+kissStepper myStepperThree(255, 8, 9); // Bare minimum - only two pins used
 ```
 
 
