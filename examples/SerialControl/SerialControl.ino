@@ -71,12 +71,12 @@ void loop(void)
 			{
 				if (value == F("forward"))
 				{
-					mot.moveForward();
+					mot.moveTo(mot.forwardLimit);
 					Serial.println(F("Moving forward"));
 				}
 				else if (value == F("backward"))
 				{
-					mot.moveBackward();
+					mot.moveTo(mot.reverseLimit);
 					Serial.println(F("Moving backward"));
 				}
 				else
@@ -226,8 +226,8 @@ void setup(void)
 	Serial.println(F("<getmaxspeed>       returns the maximum speed of the motor (in RPM)"));
 	Serial.println(F("<setmaxspeed x>     sets the maximum speed of the motor (in RPM), x <= 65535"));
 	Serial.println(F("<getcurspeed>       returns the current speed of the motor (in RPM)"));
-	Serial.println(F("<getaccel>          returns the acceleration (in RPM per minute)"));
-	Serial.println(F("<setaccel x>        sets the acceleration (in RPM per minute), x <= 65535"));
+	Serial.println(F("<getaccel>          returns the acceleration (in RPM/s)"));
+	Serial.println(F("<setaccel x>        sets the acceleration (in RPM/s), x <= 65535"));
 	Serial.println(F("<getmode>           returns the drive mode of the motor"));
 	Serial.println(F("<setmode x>         sets the motor's drive mode, 1 = full step, 2 = 1/2 step, 4 = 1/4 step, 8 = 1/8 step"));
 	Serial.println(F("<isenabled>         returns true if the motor is enabled"));

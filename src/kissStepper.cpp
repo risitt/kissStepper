@@ -57,11 +57,21 @@ void kissStepper::begin(uint16_t motorSteps, driveMode_t mode, uint16_t maxRPM, 
     digitalWrite(pinStep, LOW);
     motorStPerRev = motorSteps;
     dir = true;
-    stepOn = false;
-    curRP10M = accel = accelInterval = pos = target = 0;
+    enabled = moving = false;
+	curRP10M = accel = stepInterval = accelInterval = accelDistance = accelState = pos = target = 0;
+	forwardLimit = 2147483647L;
+	reverseLimit = -2147483648L;
     setDriveMode(mode);
     setMaxRPM(maxRPM);
     setAccel(accel);
+	
+	// this allows us to convert from a standard Arduino pin number to an AVR port
+	// for faster digital writes in the work() method at the cost of some memory
+	// we don't use this technique for other digitalWrites because they are infrequent
+	uint8_t stepPort = digitalPinToPort(pinStep);
+	stepBit = digitalPinToBitMask(pinStep);
+	stepOut = portOutputRegister(stepPort);
+	
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -83,6 +93,7 @@ void kissStepper::disable(void)
         delay(50); // this short delay stops motor momentum
         digitalWrite(pinEnable, HIGH);
     }
+	target = pos;
     enabled = false;
 }
 
@@ -145,41 +156,64 @@ void kissStepper::setDriveMode(driveMode_t mode)
 // ----------------------------------------------------------------------------------------------------
 // ----------------------------------------------------------------------------------------------------
 
-void kissStepper::setCurRP10M(uint16_t RP10M)
+void kissStepper::setMaxRPM(uint16_t newMaxRPM)
 {
-    // stepInterval is half the period / twice the frequency of steps
-    // because it toggles the step pin both on and off in a square wave
-    // with equal time at low and high.
-    // The 300000000 "magic number" is the number of microseconds in 300 seconds.
-    // 300 seconds is used because the calculation is based on revolutions per 10 minutes (600 seconds)
-    // and stepInterval needs to be half the period of the square wave.
-    if ((RP10M > 0) && (motorStPerRev > 0))
-        stepInterval = ((300000000UL / fullStepSize) * stepSize) / ((uint32_t)RP10M * motorStPerRev);
-    else
-        stepInterval = -1;
-    curRP10M = RP10M;
+	maxRP10M = (newMaxRPM * 10);
+	// if the motor is moving and acceleration is off, change speed immediately
+	if ((!accel) && (moving)) setCurRP10M(maxRP10M);
 }
 
 // ----------------------------------------------------------------------------------------------------
-// This method sets the motor acceleration in revolutions per minute per minute
 // ----------------------------------------------------------------------------------------------------
 
-bool kissStepper::setAccel(uint16_t RPMPM)
+void kissStepper::setMaxRP10M(uint16_t newMaxRP10M)
+{
+	maxRP10M = newMaxRP10M;
+	// if the motor is moving and acceleration is off, change speed immediately
+	if ((!accel) && (moving)) setCurRP10M(newMaxRP10M);
+}
+
+// ----------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------------
+
+void kissStepper::setCurRP10M(uint16_t newCurRP10M)
+{
+    // The 600000000 "magic number" is the number of microseconds in 600 seconds.
+    // 600 seconds is used because speed calculations are based on revolutions per 10 minutes (600 seconds)
+	if (newCurRP10M > 0)
+	{
+		stepInterval =  600000000UL / (driveMode * (uint32_t)motorStPerRev * newCurRP10M);		
+		curRP10M = newCurRP10M;
+	}
+	else
+	{
+		stepInterval = 4294967295UL;
+		curRP10M = 0;
+	}
+    //else hardStop();
+}
+
+// ----------------------------------------------------------------------------------------------------
+// This method sets the motor acceleration in RPM/s
+// ----------------------------------------------------------------------------------------------------
+
+bool kissStepper::setAccel(uint16_t RPMS)
 {
     // calculate the time interval at which to increment curRP10M
     // and recalculate accelDistance
     // but only allow if not currently accelerating
-    if ((curRP10M == 0) || (curRP10M == maxRP10M))
+	// interval is 1/10th what you might expect because it is incrementing RP10M, not RPM
+    if (accelState == 0)
     {
-        if (RPMPM > 0)
-        {
-            accelInterval = 6000000UL / RPMPM;
-            accelDistance = (accelDistance*accel) / RPMPM;
-        }
+        if (RPMS > 0)
+		{
+            accelInterval = 100000UL / RPMS;
+			accelDistance = (accelDistance*accel) / RPMS;
+		}
         else
             accelInterval = 0;
 
-        accel = RPMPM;
+        accel = RPMS;
         return true;
     }
     return false;
@@ -192,26 +226,26 @@ bool kissStepper::setAccel(uint16_t RPMPM)
 bool kissStepper::work(void)
 {
 
-    static bool isMoving = false;
-
     // check if it's necessary to move the motor
-    // compare to stepSize to prevent the motor from twitching back and forth around the target position
-    uint32_t stepsRemaining = abs(target - pos);
+    // compare to stepSize to prevent the motor from twitching back and forth around the target position;
+	uint32_t stepsRemaining = abs(target - pos);
+	
     if (stepsRemaining >= stepSize)
     {
         uint32_t curTime = micros();
 
-        // reset timing
-        // this block must always run once, and only once, at the start of a step sequencenoe
-        if (!isMoving)
+        // set up the step sequence
+        // this block must always run once, and only once, at the start of a step sequence
+        if (!moving)
         {
             lastStepTime = curTime; // this prevents lastStepTime from lagging behind
             lastAccelTime = curTime; // this prevents lastAccelTime from lagging behind
-            accelDistance = 0;
-            isMoving = true;
+			if (!accel) setCurRP10M(maxRP10M); // if not accelerating, start motor at full speed
+			if ((!enabled) && (pinEnable < 255)) enable(); // enable the motor controller if needed
+			moving = true;
         }
 
-        // Handle speed adjustments
+        // Handle acceleration
         // What happens if curTime rolls over but lastAccelTime has not?
         // In such a situation, curTime < lastAccelTime. Wouldn't that break the timing?
         // Let's see:
@@ -222,69 +256,69 @@ bool kissStepper::work(void)
         // curTime - lastAccelTime = 8
         // And it's all accounted for. It's like magic!
         // Adding accelInterval to lastAccelTime produces more accurate timing than setting lastAccelTime = curTime
-        if (accel == 0)
-        {
-            // if not using acceleration, change speed instantaneously
-            if (curRP10M != maxRP10M) setCurRP10M(maxRP10M);
-        }
-        else
-        {
-            if ((stepsRemaining > accelDistance) && (curRP10M < maxRP10M))   // accelerate
-            {
-                if ((curTime - lastAccelTime) >= accelInterval)
-                {
-                    setCurRP10M(curRP10M+1);
-                    lastAccelTime += accelInterval;
-                }
-            }
-            else if (((stepsRemaining < accelDistance) && (curRP10M > 1)) || (curRP10M > maxRP10M))     // decelerate
-            {
-                if ((curTime - lastAccelTime) >= accelInterval)
-                {
-                    setCurRP10M(curRP10M-1);
-                    lastAccelTime += accelInterval;
-                }
-            }
-            else
-            {
-                // need to do this to prevent lastAccelTime from lagging far behind
-                // and creating timing problems
-                lastAccelTime = curTime;
-            }
-        }
-
+		if (accel)
+		{
+			if ((stepsRemaining > accelDistance) && (curRP10M < maxRP10M))   // accelerate
+			{
+				if (accelState != 1)
+				{
+					accelState = 1;
+					lastAccelTime = curTime;
+				}
+				if ((curTime - lastAccelTime) >= accelInterval)
+				{
+					setCurRP10M(curRP10M+1);
+					lastAccelTime += accelInterval;
+				}
+			}
+			else if (((curRP10M > 1) && (stepsRemaining < accelDistance)) || (curRP10M > maxRP10M))     // decelerate
+			{
+				if (accelState != -1)
+				{
+					accelState = -1;
+					lastAccelTime = curTime;
+				}
+				if ((curTime - lastAccelTime) >= accelInterval)
+				{
+					setCurRP10M(curRP10M-1);
+					lastAccelTime += accelInterval;
+				}
+			}
+			else if (accelState != 0) accelState = 0;
+		}
+		
         // Step, if it's time...
         // Adding stepInterval to lastStepTime produces more accurate timing than setting lastStepTime = curTime
-        if ((curTime - lastStepTime) >= stepInterval)
-        {
-            // enable if needed
-            if ((!enabled) && (pinEnable < 255)) enable();
+		if (!(*stepOut & stepBit))
+		{
+			if ((curTime - lastStepTime) >= stepInterval)
+			{
+				// advance the motor
+				*stepOut |= stepBit; // like digitalWrite(pinStep, HIGH) but faster
+				dir ? pos += stepSize : pos -= stepSize;
+				if (accelState > 0) accelDistance += stepSize;
+				else if (accelState < 0) accelDistance -= stepSize;
 
-            // advance the motor
-            if (!stepOn)
-            {
-                digitalWrite(pinStep, HIGH);
-                dir ? pos += stepSize : pos -= stepSize;
-                if ((accel > 0) && (curRP10M < maxRP10M)) accelDistance += stepSize;
-                else if ((accel > 0) && (curRP10M > maxRP10M)) accelDistance -= stepSize;
-            }
-            else
-            {
-                digitalWrite(pinStep, LOW);
-            }
-            stepOn = !stepOn;
-
-            // update timing vars
-            lastStepTime += stepInterval;
-        }
-
+				// update timing vars
+				lastStepTime += stepInterval;
+			}
+		}
+		else
+		{
+			// a square wave with equal time at high and low is not necessary
+			// all we need is at least 1 us step pulse (HIGH) time followed by at least 1 us LOW time
+			if ((curTime - lastStepTime) >= 2) // we'll use 2 us here
+			{
+				*stepOut &= ~stepBit; // like digitalWrite(pinStep, LOW) but faster
+			}
+		}
     }
-    else if (isMoving)
+    else if (moving)
     {
-        if (curRP10M > 0) setCurRP10M(0);
-        isMoving = false; // motor is not moving
+		// motor has just finished moving, so reset some variables
+		hardStop();
     }
-    return isMoving;
+    return moving;
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -292,20 +326,16 @@ bool kissStepper::work(void)
 
 bool kissStepper::moveTo(int32_t newTarget)
 {
-    if (curRP10M == 0)
+    if (!moving)
     {
-        target = newTarget;
+		constrain(newTarget, reverseLimit, forwardLimit);
+		target = newTarget;
         bool newDir = (pos < target);
-        if ((newDir) && (!dir))
-        {
-            digitalWrite(pinDir, LOW);
-            dir = true;
-        }
-        else if ((!newDir) && (dir))
-        {
-            digitalWrite(pinDir, HIGH);
-            dir = false;
-        }
+		if (newDir != dir)
+		{
+			digitalWrite(pinDir, (newDir ? LOW : HIGH));
+			dir = newDir;
+		}
         return true;
     }
     return false;
@@ -314,35 +344,40 @@ bool kissStepper::moveTo(int32_t newTarget)
 // ----------------------------------------------------------------------------------------------------
 // ----------------------------------------------------------------------------------------------------
 
-bool kissStepper::moveForward(void)
+void kissStepper::stop(void)
 {
-    if (curRP10M == 0)
-    {
-        target = 2147483647L;
-        if (!dir)
-        {
-            digitalWrite(pinDir, LOW);
-            dir = true;
-        }
-        return true;
-    }
-    return false;
+	if (accel)
+	{
+		target = dir ? pos + accelDistance : pos - accelDistance;
+		constrain(target, reverseLimit, forwardLimit);
+	}
+	else
+	{
+		hardStop();
+	}
 }
 
 // ----------------------------------------------------------------------------------------------------
 // ----------------------------------------------------------------------------------------------------
 
-bool kissStepper::moveBackward(void)
+void kissStepper::hardStop(void)
 {
-    if (curRP10M == 0)
-    {
-        target = -2147483648L;
-        if (dir)
-        {
-            digitalWrite(pinDir, HIGH);
-            dir = false;
-        }
-        return true;
-    }
-    return false;
+	target = pos;
+	curRP10M = 0;
+	stepInterval = 4294967295UL;
+	accelState = 0;
+	accelDistance = 0;
+	moving = false;
+}
+
+// ----------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------------
+
+void kissStepper::setPos(int32_t newPos)
+{
+	if (!moving)
+	{
+		constrain(newPos, reverseLimit, forwardLimit);
+		pos = newPos;
+	}
 }

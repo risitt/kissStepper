@@ -42,13 +42,15 @@ public:
     {
         return driveMode;
     }
-    void setMaxRPM(uint16_t maxRPM)
-    {
-        maxRP10M = maxRPM * 10;
-    }
+    void setMaxRPM(uint16_t newMaxRPM);
     uint16_t getMaxRPM(void)
     {
         return maxRP10M / 10;
+    }
+	void setMaxRP10M(uint16_t newMaxRP10M);
+    uint16_t getMaxRP10M(void)
+    {
+        return maxRP10M;
     }
     uint16_t getCurRPM(void)
     {
@@ -56,16 +58,9 @@ public:
     }
     bool work(void);
     bool moveTo(int32_t newTarget);
-    bool moveForward(void);
-    bool moveBackward(void);
-    void stop(void)
-    {
-        target = dir ? pos + accelDistance : pos - accelDistance;
-    }
-    void hardStop(void)
-    {
-        target = pos;
-    }
+    void stop(void);
+    void hardStop(void);
+	void setPos(int32_t newPos);
     int32_t getPos(void)
     {
         return pos;
@@ -78,36 +73,53 @@ public:
     {
         return enabled;
     }
-    bool setAccel(uint16_t revPerMinPerMin);
+    bool setAccel(uint16_t RPMS);
     uint16_t getAccel(void)
     {
         return accel;
     }
+	bool isAccelerating(void)
+	{
+		return (accelState != 0);
+	}
+	uint32_t getStepInterval(void)
+	{
+		return stepInterval;
+	}
+	uint32_t getAccelInterval(void)
+	{
+		return accelInterval;
+	}
+	int32_t forwardLimit;
+	int32_t reverseLimit;
 private:
-    const uint8_t pinEnable = 255;
+    const uint8_t pinEnable;
     const uint8_t pinDir;
     const uint8_t pinStep;
     const uint8_t pinMS1;
     const uint8_t pinMS2;
     const uint8_t pinMS3;
     const uint8_t fullStepSize = 16;
+	uint8_t stepBit;
+	volatile uint8_t *stepOut;
     uint16_t motorStPerRev;
     int32_t pos;
     int32_t target;
-    uint16_t maxRP10M;
+	uint16_t maxRP10M;
     uint16_t curRP10M;
     driveMode_t driveMode;
     uint8_t stepSize;
     uint32_t stepInterval;
     uint32_t accelInterval;
     bool enabled;
+	bool moving;
     bool dir;
-    bool stepOn;
+	int8_t accelState;
+	uint32_t accelDistance;
     uint32_t lastAccelTime;
     uint32_t lastStepTime;
     uint16_t accel;
-    uint32_t accelDistance;
-    void setCurRP10M(uint16_t newSpeed);
+    void setCurRP10M(uint16_t newCurRP10M);
 };
 
 #endif
