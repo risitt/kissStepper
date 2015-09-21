@@ -34,7 +34,7 @@ public:
         EIGHTH = 8,
         SIXTEENTH = 16
     };
-    void begin(uint16_t motorSteps, driveMode_t mode = FULL, uint16_t maxRPM = 30, uint16_t accel = 0);
+    void begin(uint16_t motorSteps, driveMode_t mode = FULL, uint16_t maxRPM = 30, uint16_t accelRPMS = 0);
     void enable(void);
     void disable(void);
     void setDriveMode(driveMode_t mode);
@@ -47,7 +47,7 @@ public:
     {
         return maxRP10M / 10;
     }
-	void setMaxRP10M(uint16_t newMaxRP10M);
+    void setMaxRP10M(uint16_t newMaxRP10M);
     uint16_t getMaxRP10M(void)
     {
         return maxRP10M;
@@ -60,7 +60,7 @@ public:
     bool moveTo(int32_t newTarget);
     void stop(void);
     void hardStop(void);
-	void setPos(int32_t newPos);
+    void setPos(int32_t newPos);
     int32_t getPos(void)
     {
         return pos;
@@ -78,20 +78,12 @@ public:
     {
         return accel;
     }
-	bool isAccelerating(void)
-	{
-		return (accelState != 0);
-	}
-	uint32_t getStepInterval(void)
-	{
-		return stepInterval;
-	}
-	uint32_t getAccelInterval(void)
-	{
-		return accelInterval;
-	}
-	int32_t forwardLimit;
-	int32_t reverseLimit;
+    bool isAccelerating(void)
+    {
+        return (accelState != 0);
+    }
+    int32_t forwardLimit;
+    int32_t reverseLimit;
 private:
     const uint8_t pinEnable;
     const uint8_t pinDir;
@@ -100,22 +92,22 @@ private:
     const uint8_t pinMS2;
     const uint8_t pinMS3;
     const uint8_t fullStepSize = 16;
-	uint8_t stepBit;
-	volatile uint8_t *stepOut;
+    uint8_t stepBit;
+    volatile uint8_t *stepOut;
     uint16_t motorStPerRev;
     int32_t pos;
     int32_t target;
-	uint16_t maxRP10M;
+    uint16_t maxRP10M;
     uint16_t curRP10M;
     driveMode_t driveMode;
     uint8_t stepSize;
     uint32_t stepInterval;
     uint32_t accelInterval;
     bool enabled;
-	bool moving;
+    bool moving;
     bool dir;
-	int8_t accelState;
-	uint32_t accelDistance;
+    int8_t accelState;
+    uint32_t accelDistance;
     uint32_t lastAccelTime;
     uint32_t lastStepTime;
     uint16_t accel;
