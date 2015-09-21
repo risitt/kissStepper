@@ -35,7 +35,7 @@ void setup(void)
 {
 	...
 	myStepper.begin(motorSteps, driveMode, maxRPM, accel); // general syntax
-	myStepperTwo.begin(200, kissStepper::EIGHTH, 60, 3000); // motor has 200 st/rev, use 1/8th stepping, 60 RPM, 3000 RPMPM acceleration
+	myStepperTwo.begin(200, kissStepper::EIGHTH, 60, 60); // motor has 200 st/rev, use 1/8th stepping, 60 RPM, 60 RPM/s acceleration
     myStepperThree.begin(200); // Bare minimum - drive mode, speed, and acceleration will be set to defaults.
 	...
 }
@@ -50,7 +50,7 @@ void setup(void)
 	* kissStepper::EIGHTH for 1/8 stepping
 	* kissStepper::SIXTEENTH for 1/16 stepping
 * maxRPM (*optional*): the maximum speed, in RPM, that the motor will turn at. *Defaults to 30*.
-* accel (*optional*): acceleration, chosen in RPM per minute (RPMPM). Acceleration can help to prevent skipped steps or motor stalling when driving heavy loads or moving at high speed. *Defaults to 0 (off)*.
+* accel (*optional*): acceleration, chosen in RPM/s. Acceleration can help to prevent skipped steps or motor stalling when driving heavy loads or moving at high speed. *Defaults to 0 (off)*.
 
 ## bool work(void)
 
@@ -70,35 +70,16 @@ True if the motor is moving, otherwise false.
 
 ## bool moveTo(int32_t newTarget)
 
-A very useful method that tells the motor to move to a particular location. You only need to call this once - the work() method will then move the motor until the destination is reached.
+An essential method that tells the motor to move to a particular location. You only need to call this once for every position - the work() method will then move the motor until the destination is reached. If you don't want the motor to stop at a predetermined end point, but rather just want to move the motor forwards or backwards until stopped with stop() or hardStop(), pass the forwardLimit or reverseLimit member as the parameter.
 ### Example:
 ```C++
-myStepper.moveTo(3200);
+myStepper.moveTo(3200); // move to position 3200
+myStepper.moveTo(myStepper.forwardLimit); // move forward
+myStepper.moveTo(myStepper.reverseLimit); // move backward
 ```
 
 ### Parameters:
 * newTarget (**required**): the target position, measured in 1/16th steps. For a motor with 200 full steps per revolution, position 3200 is one revolution forward from the starting position. If at 0, positive values will make the motor move "forward", while negative values will make the motor move "backward". **If you use this method when the motor is already moving, it will be ignored.**
-
-### Returns:
-True if the command was accepted, otherwise false.
-
-
-## bool moveForward(void)
-Tells the motor to move forward until either stopped, or the maximum extent (defaults to position 2,147,483,647) is reached. **If you use this method when the motor is already moving, it will be ignored.**
-### Example:
-```C++
-myStepper.moveForward();
-```
-
-### Returns:
-True if the command was accepted, otherwise false.
-
-## bool moveBackward(void)
-Tells the motor to move backward until either stopped, or the maximum extent (defaults to position -2,147,483,648) is reached. **If you use this method when the motor is already moving, it will be ignored.**
-### Example:
-```C++
-myStepper.moveBackward();
-```
 
 ### Returns:
 True if the command was accepted, otherwise false.
@@ -190,7 +171,7 @@ unsigned int curSpeed = myStepper.getCurRPM();
 ### Returns:
 The current revolutions per minute.
 
-## bool setAccel(uint16_t revPerMinPerMin)
+## bool setAccel(uint16_t RPMS)
 
 Allows changing the rate of acceleration/deceleration after begin() is called. **This can only be done if the motor is not currently accelerating/decelerating.** 
 
@@ -200,14 +181,14 @@ myStepper.setAccel(1000);
 ```
 
 ### Parameters:
-* revPerMinPerMin (**required**): the new rate of acceleration, in RPM per minute
+* RPMS (**required**): the new rate of acceleration, in RPM/s
 
 ### Returns:
 True if the command was accepted, otherwise false.
 
 ## uint16_t getAccel(void)
 
-Returns the acceleration rate in RPM per minute
+Returns the acceleration rate in RPM/s
 
 ### Example:
 ```C++
@@ -215,7 +196,7 @@ unsigned int accel = myStepper.getAccel();
 ```
 
 ### Returns:
-The acceleration rate in revolutions per minute per minute
+The acceleration rate in RPM/s
 
 ## void enable(void)
 
