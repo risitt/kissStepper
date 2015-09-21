@@ -327,8 +327,7 @@ bool kissStepper::moveTo(int32_t newTarget)
 {
     if (!moving)
     {
-        constrain(newTarget, reverseLimit, forwardLimit);
-        target = newTarget;
+        target = constrain(newTarget, reverseLimit, forwardLimit);
         bool newDir = (pos < target);
         if (newDir != dir)
         {
@@ -348,7 +347,7 @@ void kissStepper::stop(void)
     if (accel)
     {
         target = dir ? pos + accelDistance : pos - accelDistance;
-        constrain(target, reverseLimit, forwardLimit);
+        target = constrain(target, reverseLimit, forwardLimit);
     }
     else
     {
@@ -376,7 +375,6 @@ void kissStepper::setPos(int32_t newPos)
 {
     if (!moving)
     {
-        constrain(newPos, reverseLimit, forwardLimit);
-        pos = newPos;
+        pos = constrain(newPos, reverseLimit, forwardLimit);;
     }
 }

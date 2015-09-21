@@ -56,6 +56,10 @@ public:
     {
         return curRP10M / 10;
     }
+    uint16_t getCurRP10M(void)
+    {
+        return curRP10M;
+    }
     bool work(void);
     bool moveTo(int32_t newTarget);
     void stop(void);
@@ -73,6 +77,10 @@ public:
     {
         return enabled;
     }
+	bool isMoving(void)
+	{
+		return moving;
+	}
     bool setAccel(uint16_t RPMS);
     uint16_t getAccel(void)
     {
