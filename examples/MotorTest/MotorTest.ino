@@ -253,7 +253,7 @@ void accel(void)
             {
                 mot.work();
             }
-            while (mot.isAccelerating());
+            while (mot.getAccelState() != 0);
             endTime = micros();
             uint32_t accelTime = endTime - startTime;
 
@@ -322,8 +322,8 @@ void misc(void)
 
     delay(100);
 
-    if (!mot.isAccelerating()) Serial.println(F("isAccelerating() == FALSE (pass)"));
-    else Serial.println(F("isAccelerating() == TRUE (fail)"));
+    if (mot.getAccelState() == 0) Serial.println(F("getAccelState() == 0 (pass)"));
+    else Serial.println(F("getAccelState() != 0 (fail)"));
 
     delay(100);
 
@@ -348,8 +348,8 @@ void misc(void)
 
     delay(100);
 
-    if (mot.isAccelerating()) Serial.println(F("isAccelerating() == TRUE (pass)"));
-    else Serial.println(F("isAccelerating() == FALSE (fail)"));
+    if (mot.getAccelState() != 0) Serial.println(F("getAccelState() != 0 (pass)"));
+    else Serial.println(F("getAccelState() == 0 (fail)"));
 
     // let motor move
     while (mot.work());
@@ -391,8 +391,8 @@ void misc(void)
 
     delay(100);
 
-    if (!mot.isAccelerating()) Serial.println(F("isAccelerating() == FALSE (pass)"));
-    else Serial.println(F("isAccelerating() == TRUE (fail)"));
+    if (mot.getAccelState() == 0) Serial.println(F("getAccelState() == 0 (pass)"));
+    else Serial.println(F("getAccelState() != 0 (fail)"));
 
     delay(100);
 
@@ -417,8 +417,8 @@ void misc(void)
 
     delay(100);
 
-    if (!mot.isAccelerating()) Serial.println(F("isAccelerating() == FALSE (pass)"));
-    else Serial.println(F("isAccelerating() == TRUE (fail)"));
+    if (mot.getAccelState() == 0) Serial.println(F("getAccelState() == 0 (pass)"));
+    else Serial.println(F("getAccelState() != 0 (fail)"));
 
     // let motor move
     mot.stop();
@@ -452,8 +452,8 @@ void misc(void)
 
     delay(100);
 
-    if (!mot.isAccelerating()) Serial.println(F("isAccelerating() == FALSE (pass)"));
-    else Serial.println(F("isAccelerating() == TRUE (fail)"));
+    if (mot.getAccelState() == 0) Serial.println(F("getAccelState() == 0 (pass)"));
+    else Serial.println(F("getAccelState() != 0 (fail)"));
 
 }
 

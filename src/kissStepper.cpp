@@ -341,6 +341,7 @@ void kissStepper::setPos(int32_t newPos)
 {
     if (!moving)
     {
-        pos = constrain(newPos, reverseLimit, forwardLimit);;
+        pos = constrain(newPos, reverseLimit, forwardLimit);
+		target = pos;
     }
 }

@@ -7,6 +7,9 @@
 #######################################
 
 kissStepper	KEYWORD1
+driveMode_t	KEYWORD1
+forwardLimit	KEYWORD1
+reverseLimit	KEYWORD1
 
 #######################################
 # Methods and Functions (KEYWORD2)
@@ -19,18 +22,24 @@ setDriveMode	KEYWORD2
 getDriveMode	KEYWORD2
 setMaxRPM	KEYWORD2
 getMaxRPM	KEYWORD2
+setMaxRP10M	KEYWORD2
+getMaxRP10M	KEYWORD2
 getCurRPM	KEYWORD2
+getCurRP10M	KEYWORD2
 work	KEYWORD2
 moveTo	KEYWORD2
 moveForward	KEYWORD2
 moveBackward	KEYWORD2
 stop	KEYWORD2
 hardStop	KEYWORD2
+setPos	KEYWORD2
 getPos	KEYWORD2
 getTarget	KEYWORD2
 isEnabled	KEYWORD2
+isMoving	KEYWORD2
 setAccel	KEYWORD2
 getAccel	KEYWORD2
+getAccelState	KEYWORD2
 
 #######################################
 # Constants (LITERAL1)
@@ -38,6 +47,9 @@ getAccel	KEYWORD2
 
 FULL	LITERAL1
 HALF	LITERAL1
-QUARTER	LITERAL1
-EIGHTH	LITERAL1
-SIXTEENTH	LITERAL1
+MICRO4	LITERAL1
+MICRO8	LITERAL1
+MICRO16	LITERAL1
+MICRO32	LITERAL1
+MICRO64	LITERAL1
+MICRO128	LITERAL1

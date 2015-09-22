@@ -90,9 +90,9 @@ public:
     {
         return accel;
     }
-    bool isAccelerating(void)
+    int8_t getAccelState(void)
     {
-        return (accelState != 0);
+        return accelState;
     }
     int32_t forwardLimit;
     int32_t reverseLimit;
