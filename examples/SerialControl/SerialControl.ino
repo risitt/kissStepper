@@ -146,10 +146,10 @@ void loop(void)
 					case kissStepper::HALF:
 						Serial.println(F("1/2 step"));
 						break;
-					case kissStepper::QUARTER:
+					case kissStepper::MICRO4:
 						Serial.println(F("1/4 step"));
 						break;
-					case kissStepper::EIGHTH:
+					case kissStepper::MICRO8:
 						Serial.println(F("1/8 step"));
 						break;
 				}
@@ -170,12 +170,12 @@ void loop(void)
 				else if (value == "4")
 				{
 					Serial.println(F("1/4 step"));
-					mot.setDriveMode(kissStepper::QUARTER);
+					mot.setDriveMode(kissStepper::MICRO4);
 				}
 				else if (value == "8")
 				{
 					Serial.println(F("1/8 step"));
-					mot.setDriveMode(kissStepper::EIGHTH);
+					mot.setDriveMode(kissStepper::MICRO8);
 				}
 			}
 			else if (key == F("isenabled"))
@@ -208,7 +208,7 @@ void setup(void)
 
 	// initialize the kissStepper
 	// the motor has 200 steps, use 1/8th drive mode, and set the maximum speed to 60 RPM
-	mot.begin(200, kissStepper::EIGHTH, 60); 
+	mot.begin(200, kissStepper::MICRO8, 60); 
 
 	Serial.begin(9600);
 	

@@ -1,6 +1,6 @@
 /*
-Keep it Simple Stepper - a lightweight library for the Easy Driver, Big Easy Driver, and Allegro stepper motor drivers that use a Step/Dir interface
-Written by Rylee Isitt. September 14, 2015
+Keep it Simple Stepper - a lightweight library for the Easy Driver, Big Easy Driver, Allegro stepper motor drivers and others that use a Step/Dir interface
+Written by Rylee Isitt. September 21, 2015
 License: GNU Lesser General Public License (LGPL) V2.1
 
 Despite the existence of several excellent libraries for driving stepper motors, I created this one to fullfill the following needs:
@@ -15,16 +15,24 @@ Despite the existence of several excellent libraries for driving stepper motors,
 #include "kissStepper.h"
 
 kissStepper::kissStepper(uint8_t pinEnable, uint8_t pinDir, uint8_t pinStep)
-    : pinEnable(pinEnable), pinDir(pinDir), pinStep(pinStep), pinMS1(255), pinMS2(255), pinMS3(255) {}
+    : pinEnable(pinEnable), pinDir(pinDir), pinStep(pinStep), pinMS1(255), pinMS2(255), pinMS3(255),
+	MS1Config(0), MS2Config(0), MS3Config(0) {}
 
 kissStepper::kissStepper(uint8_t pinEnable, uint8_t pinDir, uint8_t pinStep, uint8_t pinMS1)
-    : pinEnable(pinEnable), pinDir(pinDir), pinStep(pinStep), pinMS1(pinMS1), pinMS2(255), pinMS3(255) {}
+    : pinEnable(pinEnable), pinDir(pinDir), pinStep(pinStep), pinMS1(pinMS1), pinMS2(255), pinMS3(255),
+	MS1Config(88), MS2Config(56), MS3Config(8) {}
 
 kissStepper::kissStepper(uint8_t pinEnable, uint8_t pinDir, uint8_t pinStep, uint8_t pinMS1, uint8_t pinMS2)
-    : pinEnable(pinEnable), pinDir(pinDir), pinStep(pinStep), pinMS1(pinMS1), pinMS2(pinMS2), pinMS3(255) {}
+    : pinEnable(pinEnable), pinDir(pinDir), pinStep(pinStep), pinMS1(pinMS1), pinMS2(pinMS2), pinMS3(255),
+	MS1Config(88), MS2Config(56), MS3Config(8) {}
 
 kissStepper::kissStepper(uint8_t pinEnable, uint8_t pinDir, uint8_t pinStep, uint8_t pinMS1, uint8_t pinMS2, uint8_t pinMS3)
-    : pinEnable(pinEnable), pinDir(pinDir), pinStep(pinStep), pinMS1(pinMS1), pinMS2(pinMS2), pinMS3(pinMS3) {}
+    : pinEnable(pinEnable), pinDir(pinDir), pinStep(pinStep), pinMS1(pinMS1), pinMS2(pinMS2), pinMS3(pinMS3),
+	MS1Config(88), MS2Config(56), MS3Config(8) {}
+	
+kissStepper::kissStepper(uint8_t pinEnable, uint8_t pinDir, uint8_t pinStep, uint8_t pinMS1, uint8_t pinMS2, uint8_t pinMS3, uint8_t MS1Config, uint8_t MS2Config, uint8_t MS3Config)
+    : pinEnable(pinEnable), pinDir(pinDir), pinStep(pinStep), pinMS1(pinMS1), pinMS2(pinMS2), pinMS3(pinMS3),
+	MS1Config(MS1Config), MS2Config(MS2Config), MS3Config(MS3Config) {}
 
 // ----------------------------------------------------------------------------------------------------
 // Initialize the motor in a default state:
@@ -102,54 +110,10 @@ void kissStepper::disable(void)
 
 void kissStepper::setDriveMode(driveMode_t mode)
 {
-    switch (mode)
-    {
-    case SIXTEENTH:
-        // sixteenth stepping requires at least three MS lines
-        if (pinMS3 < 255)
-        {
-            digitalWrite(pinMS1, HIGH);
-            digitalWrite(pinMS2, HIGH);
-            digitalWrite(pinMS3, HIGH);
-        }
-        break;
-    case EIGHTH:
-        // eighth stepping requires at least two MS lines
-        if (pinMS2 < 255)
-        {
-            digitalWrite(pinMS1, HIGH);
-            digitalWrite(pinMS2, HIGH);
-        }
-        if (pinMS3 < 255) digitalWrite(pinMS3, LOW);
-        break;
-    case QUARTER:
-        // quarter stepping requires at least two MS lines
-        if (pinMS2 < 255)
-        {
-            digitalWrite(pinMS1, LOW);
-            digitalWrite(pinMS2, HIGH);
-        }
-        if (pinMS3 < 255) digitalWrite(pinMS3, LOW);
-        break;
-    case HALF:
-        // half stepping requires at least one MS line
-        if (pinMS1 < 255) digitalWrite(pinMS1, HIGH);
-        if (pinMS2 < 255) digitalWrite(pinMS2, LOW);
-        if (pinMS3 < 255) digitalWrite(pinMS3, LOW);
-        break;
-    case FULL:
-    default:
-        if (pinMS1 < 255) digitalWrite(pinMS1, LOW);
-        if (pinMS2 < 255) digitalWrite(pinMS2, LOW);
-        if (pinMS3 < 255) digitalWrite(pinMS3, LOW);
-        break;
-    }
+	if (pinMS1 < 255) digitalWrite(pinMS1, ((MS1Config & (uint8_t)mode) ? HIGH : LOW));
+	if (pinMS2 < 255) digitalWrite(pinMS2, ((MS2Config & (uint8_t)mode) ? HIGH : LOW));
+	if (pinMS3 < 255) digitalWrite(pinMS3, ((MS3Config & (uint8_t)mode) ? HIGH : LOW));
     driveMode = mode;
-
-    // keep this calculation out of the switch statement and don't check for presence of pins
-    // this is so that even if MS lines are not controlled with the MCU, the user can still inform
-    // this library about the chosen stepping mode for accurate speed calculations
-    stepSize = fullStepSize / mode;
     setCurRP10M(curRP10M);
 }
 
@@ -178,11 +142,12 @@ void kissStepper::setMaxRP10M(uint16_t newMaxRP10M)
 
 void kissStepper::setCurRP10M(uint16_t newCurRP10M)
 {
-    // The 600000000 "magic number" is the number of microseconds in 600 seconds.
+    // The 4687500 "magic number" starts with the number of microseconds in 600 seconds (600000000).
     // 600 seconds is used because speed calculations are based on revolutions per 10 minutes (600 seconds)
+	// then it is divided by the maximum microstep number (128), and the result is 4687500
     if (newCurRP10M > 0)
     {
-        stepInterval =  600000000UL / (driveMode * (uint32_t)motorStPerRev * newCurRP10M);
+        stepInterval =  (4687500UL * driveMode) / ((uint32_t)motorStPerRev * newCurRP10M);
         curRP10M = newCurRP10M;
     }
     else
@@ -226,10 +191,10 @@ bool kissStepper::work(void)
 {
 
     // check if it's necessary to move the motor
-    // compare to stepSize to prevent the motor from twitching back and forth around the target position;
+    // compare to step size to prevent the motor from twitching back and forth around the target position;
     uint32_t stepsRemaining = abs(target - pos);
 
-    if (stepsRemaining >= stepSize)
+    if (stepsRemaining >= (uint8_t)driveMode)
     {
         uint32_t curTime = micros();
 
@@ -294,9 +259,9 @@ bool kissStepper::work(void)
             {
                 // advance the motor
                 *stepOut |= stepBit; // like digitalWrite(pinStep, HIGH) but faster
-                dir ? pos += stepSize : pos -= stepSize;
-                if (accelState > 0) accelDistance += stepSize;
-                else if (accelState < 0) accelDistance -= stepSize;
+                dir ? pos += (uint8_t)driveMode : pos -= (uint8_t)driveMode;
+                if (accelState > 0) accelDistance += (uint8_t)driveMode;
+                else if (accelState < 0) accelDistance -= (uint8_t)driveMode;
 
                 // update timing vars
                 lastStepTime += stepInterval;
@@ -305,8 +270,9 @@ bool kissStepper::work(void)
         else
         {
             // a square wave with equal time at high and low is not necessary
-            // all we need is at least 1 us step pulse (HIGH) time followed by at least 1 us LOW time
-            if ((curTime - lastStepTime) >= 2) // we'll use 2 us here
+            // all we need is at least 1 us step pulse (HIGH) and 1 us LOW time for Allegro chips
+			// For the Pololu chips, the minimum required pulse time is ~2 us
+            if ((curTime - lastStepTime) >= 4) // we'll use 4 us here for a bit of padding
             {
                 *stepOut &= ~stepBit; // like digitalWrite(pinStep, LOW) but faster
             }

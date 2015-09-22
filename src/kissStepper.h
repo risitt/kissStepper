@@ -1,6 +1,6 @@
 /*
-Keep it Simple Stepper - a lightweight library for the Easy Driver, Big Easy Driver, and Allegro stepper motor drivers that use a Step/Dir interface
-Written by Rylee Isitt. September 14, 2015
+Keep it Simple Stepper - a lightweight library for the Easy Driver, Big Easy Driver, Allegro stepper motor drivers and others that use a Step/Dir interface
+Written by Rylee Isitt. September 21, 2015
 License: GNU Lesser General Public License (LGPL) V2.1
 
 Despite the existence of several excellent libraries for driving stepper motors, I created this one to fullfill the following needs:
@@ -25,14 +25,18 @@ public:
     kissStepper(uint8_t pinEnable, uint8_t pinDir, uint8_t pinStep, uint8_t pinMS1);
     kissStepper(uint8_t pinEnable, uint8_t pinDir, uint8_t pinStep, uint8_t pinMS1, uint8_t pinMS2);
     kissStepper(uint8_t pinEnable, uint8_t pinDir, uint8_t pinStep, uint8_t pinMS1, uint8_t pinMS2, uint8_t pinMS3);
+	kissStepper(uint8_t pinEnable, uint8_t pinDir, uint8_t pinStep, uint8_t pinMS1, uint8_t pinMS2, uint8_t pinMS3, uint8_t MS1Config, uint8_t MS2Config, uint8_t MS3Config);
     ~kissStepper(void) {};
-    enum driveMode_t
+    enum driveMode_t: byte
     {
-        FULL = 1,
-        HALF = 2,
-        QUARTER = 4,
-        EIGHTH = 8,
-        SIXTEENTH = 16
+        FULL = 128,
+        HALF = 64,
+        MICRO4 = 32,
+        MICRO8 = 16,
+        MICRO16 = 8,
+		MICRO32 = 4,
+		MICRO64 = 2,
+		MICRO128 = 1
     };
     void begin(uint16_t motorSteps, driveMode_t mode = FULL, uint16_t maxRPM = 30, uint16_t accelRPMS = 0);
     void enable(void);
@@ -99,7 +103,9 @@ private:
     const uint8_t pinMS1;
     const uint8_t pinMS2;
     const uint8_t pinMS3;
-    const uint8_t fullStepSize = 16;
+	const uint8_t MS1Config;
+	const uint8_t MS2Config;
+	const uint8_t MS3Config;
     uint8_t stepBit;
     volatile uint8_t *stepOut;
     uint16_t motorStPerRev;
@@ -108,7 +114,6 @@ private:
     uint16_t maxRP10M;
     uint16_t curRP10M;
     driveMode_t driveMode;
-    uint8_t stepSize;
     uint32_t stepInterval;
     uint32_t accelInterval;
     bool enabled;

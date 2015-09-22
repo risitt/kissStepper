@@ -17,7 +17,7 @@ This software is licensed under the GPL v3
 kissStepper mot(7, 3, 4, 5, 6);
 
 const uint16_t motorFullStPerRev = 200; // number of full steps in one revolution of the test motor
-const uint16_t motorSixteenthStPerRev = motorFullStPerRev * 16; // number of 1/16th steps in one revolution of the test motor
+const uint16_t motorOneRev = motorFullStPerRev * kissStepper::FULL; // number of microsteps in one revolution of the test motor
 
 // ----------------------------------------------------------------------------------------------------
 // ----------------------------------------------------------------------------------------------------
@@ -28,7 +28,7 @@ void resetMotor(void)
     mot.hardStop();
     mot.setAccel(0);
     mot.setMaxRPM(60);
-    mot.setDriveMode(kissStepper::EIGHTH);
+    mot.setDriveMode(kissStepper::MICRO8);
     mot.moveTo(0);
     while (mot.work());
     delay(100);
@@ -48,10 +48,10 @@ void setMotorDriveMode(uint8_t mode)
         mot.setDriveMode(kissStepper::HALF);
         break;
     case 4:
-        mot.setDriveMode(kissStepper::QUARTER);
+        mot.setDriveMode(kissStepper::MICRO4);
         break;
     case 8:
-        mot.setDriveMode(kissStepper::EIGHTH);
+        mot.setDriveMode(kissStepper::MICRO8);
         break;
     }
 }
@@ -76,7 +76,7 @@ void basic(void)
             Serial.println(F(" step)"));
             mot.setMaxRPM(RPM);
             setMotorDriveMode(mode);
-            if (mot.getPos() == 0) mot.moveTo(motorSixteenthStPerRev);
+            if (mot.getPos() == 0) mot.moveTo(motorOneRev);
             else mot.moveTo(0);
             uint32_t startTime = micros();
             while (mot.work());
@@ -105,7 +105,7 @@ void benchmark(void)
         Serial.print(String(RPM));
         Serial.print(F("RPM: "));
         uint32_t runCount = 0;
-        mot.moveTo(3200);
+        mot.moveTo(motorOneRev);
         startTime = micros();
         while (mot.work()) runCount++;
         endTime = micros();
@@ -125,7 +125,7 @@ void benchmark(void)
         Serial.print(String(RPM));
         Serial.print(F("RPM: "));
         uint32_t runCount = 0;
-        mot.moveTo(3200);
+        mot.moveTo(motorOneRev);
         startTime = micros();
         while (mot.work()) runCount++;
         endTime = micros();
@@ -149,7 +149,7 @@ void fracRPM(void)
         Serial.print(F("\nSet RPM: "));
         Serial.println(String((float)(RP10M/10.0)));
         mot.setMaxRP10M(RP10M);
-        if (mot.getPos() == 0) mot.moveTo(motorSixteenthStPerRev);
+        if (mot.getPos() == 0) mot.moveTo(motorOneRev);
         else mot.moveTo(0);
         uint32_t startTime = micros();
         while (mot.work());
@@ -173,7 +173,7 @@ void rpmchange(void)
     uint32_t testPos = 0;
     for (byte RPM = 15; RPM <= 60; RPM*=2)
     {
-        testPos += 3200;
+        testPos += motorOneRev;
         Serial.print("\nSet RPM: ");
         Serial.println(String(RPM));
         mot.setMaxRPM(RPM);
@@ -200,7 +200,7 @@ void modechange(void)
     uint32_t testPos = 0;
     for (byte mode = 1; mode <= 8; mode*=2)
     {
-        testPos += 3200;
+        testPos += motorOneRev;
         setMotorDriveMode(mode);
         Serial.print("1/");
         Serial.print(String(mode));
@@ -261,7 +261,7 @@ void accel(void)
             // move foward one revolution
             startPos = mot.getPos();
             startTime = micros();
-            while (mot.getPos() != (startPos+motorSixteenthStPerRev)) mot.work();
+            while (mot.getPos() != (startPos+motorOneRev)) mot.work();
             endTime = micros();
             endPos = mot.getPos();
             endRPM = 60000000.0 / (float)(endTime - startTime);
@@ -328,7 +328,7 @@ void misc(void)
     delay(100);
 
     mot.setAccel(60);
-    mot.moveTo(motorSixteenthStPerRev);
+    mot.moveTo(motorOneRev);
     mot.work();
 
     Serial.println(F("\nMotor in motion with acceleration:"));
@@ -356,16 +356,16 @@ void misc(void)
 
     Serial.println(F("\nAfter movement:"));
 
-    if (mot.getPos() == motorSixteenthStPerRev)
+    if (mot.getPos() == motorOneRev)
     {
         Serial.print(F("getPos() == "));
-        Serial.print(String(motorSixteenthStPerRev));
+        Serial.print(String(motorOneRev));
         Serial.println(F(" (pass)"));
     }
     else
     {
         Serial.print(F("getPos() != "));
-        Serial.print(String(motorSixteenthStPerRev));
+        Serial.print(String(motorOneRev));
         Serial.println(F(" (fail)"));
     }
 
@@ -555,7 +555,7 @@ void setup(void)
 
     // initialize the kissStepper
     // the motor has 200 steps, use 1/8th drive mode, and set the maximum speed to 60 RPM
-    mot.begin(motorFullStPerRev, kissStepper::EIGHTH, 60);
+    mot.begin(motorFullStPerRev, kissStepper::MICRO8, 60);
 
 
     Serial.println(F("Usage:"));
