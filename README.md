@@ -1,7 +1,7 @@
 # kissStepper
 Keep it Simple Stepper - a lightweight library for the Easy Driver, Big Easy Driver, Allegro stepper motor drivers, and many others that use STEP/DIR interfaces. It supports drivers with up to 1/128 microstepping set via 3 or fewer drive mode/microstep select pins.
 
-Written by Rylee Isitt. September 32, 2015
+Written by Rylee Isitt. September 21, 2015
 
 License: GNU Lesser General Public License (LGPL) V2.1
 
