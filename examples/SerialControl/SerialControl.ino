@@ -11,13 +11,14 @@ Libraries are licensed separately (see their licenses for details).
 */
 #include <kissStepper.h>
 
-// instantiate an instance of the kissStepper class
-// you can leave the MS1 and MS2 pins out if you don't want to control them with software (eg, if you have them hardwired or set with a DIP switch)
-// you can also set ENABLE to 255 if you aren't controlling the ENABLE pin with software (eg, if you just pull it to ground)
-// The numbers below are the pins for ENABLE, DIR, STEP, MS1, and MS2, respectively
-kissStepper mot(7, 3, 4, 5, 6);
-// kissStepper mot(7, 3, 4); // if you don't want to programmatically set MS1 and MS2
-// kissStepper mot(255, 3, 4); // if you don't want to programmatically set the ENABLE pin either
+// instantiate the kissStepper
+// This sets up an Easy Driver with software control over DIR, STEP, ENABLE, MS1, and MS2 pins
+// the pin assignments are in the order of DIR, STEP, ENABLE, MS1, and MS2, respectively
+// The Easy Driver only supports up to 1/8th microstepping, so we set MICROSTEP_8 as the maxMicrostepMode
+kissStepper mot(200,
+	kissPinAssignments(3, 4, 7, 5, 6),
+	kissMicrostepConfig(MICROSTEP_8));
+
 
 void loop(void)
 {
@@ -90,10 +91,10 @@ void loop(void)
 				mot.stop();
 				Serial.println(F("Motor stopped"));
 			}
-			else if (key == F("hardstop"))
+			else if (key == F("decelerate"))
 			{
-				mot.hardStop();
-				Serial.println(F("Motor stopped"));
+				mot.decelerate();
+				Serial.println(F("Motor decelerating"));
 			}
 			else if (key == F("getmaxspeed"))
 			{
@@ -140,16 +141,16 @@ void loop(void)
 				Serial.print(F("Mode: "));
 				switch (mot.getDriveMode())
 				{
-					case kissStepper::FULL:
+					case FULL_STEP:
 						Serial.println(F("full step"));
 						break;
-					case kissStepper::HALF:
+					case HALF_STEP:
 						Serial.println(F("1/2 step"));
 						break;
-					case kissStepper::MICRO4:
+					case MICROSTEP_4:
 						Serial.println(F("1/4 step"));
 						break;
-					case kissStepper::MICRO8:
+					case MICROSTEP_8:
 						Serial.println(F("1/8 step"));
 						break;
 				}
@@ -160,22 +161,22 @@ void loop(void)
 				if (value == "1")
 				{
 					Serial.println(F("full step"));
-					mot.setDriveMode(kissStepper::FULL);
+					mot.setDriveMode(FULL_STEP);
 				}
 				else if (value == "2")
 				{
 					Serial.println(F("1/2 step"));
-					mot.setDriveMode(kissStepper::HALF);
+					mot.setDriveMode(HALF_STEP);
 				}
 				else if (value == "4")
 				{
 					Serial.println(F("1/4 step"));
-					mot.setDriveMode(kissStepper::MICRO4);
+					mot.setDriveMode(MICROSTEP_4);
 				}
 				else if (value == "8")
 				{
 					Serial.println(F("1/8 step"));
-					mot.setDriveMode(kissStepper::MICRO8);
+					mot.setDriveMode(MICROSTEP_8);
 				}
 			}
 			else if (key == F("isenabled"))
@@ -207,8 +208,8 @@ void setup(void)
 {
 
 	// initialize the kissStepper
-	// the motor has 200 steps, use 1/8th drive mode, and set the maximum speed to 60 RPM
-	mot.begin(200, kissStepper::MICRO8, 60); 
+	// use 1/8th drive mode, and set the maximum speed to 60 RPM
+	mot.begin(MICROSTEP_8, 60); 
 
 	Serial.begin(9600);
 	
@@ -221,8 +222,8 @@ void setup(void)
 	Serial.println(F("<goto x>            sends the motor to position x, -2147483648 <= x <= 2147483647"));
 	Serial.println(F("<move forward>      continuously move the motor fowards"));
 	Serial.println(F("<move backward>     continuously move the motor backwards"));
-	Serial.println(F("<stop>              stops the motor, decelerating if acceleration is enabled"));
-	Serial.println(F("<hardstop>          stops the motor without decelerating"));
+	Serial.println(F("<stop>              stops the motor suddenly"));
+	Serial.println(F("<decelerate>        if acceleration is on, decelerates the motor to a stop"));
 	Serial.println(F("<getmaxspeed>       returns the maximum speed of the motor (in RPM)"));
 	Serial.println(F("<setmaxspeed x>     sets the maximum speed of the motor (in RPM), x <= 65535"));
 	Serial.println(F("<getcurspeed>       returns the current speed of the motor (in RPM)"));

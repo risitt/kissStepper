@@ -1,41 +1,73 @@
-# kissStepper API documentation for Arduino
-
+kissStepper API documentation for Arduino
+=========================================
 For a fully working example that implements most of the API methods below, please see the "SerialControl" sketch in the examples folder.
 
 The simplest way to use kissStepper is as follows:
 
-1. Instantiate a new instance in the global scope
+1. Create a new instance in the global scope
 2. Call begin() with your chosen settings in your sketch's setup() routine
 3. Place work() in your loop() routine where it will be repeatedly called at regular intervals
 4. You can then use moveTo(), getPos(), and stop() to move the motor where you want, stop it where you want, and save its current position for later use (such as returning to certain positions).
 
-## Creating a new instance
-
+Creating a new instance
+-----------------------
 You must create an instance of the kissStepper class before you can interact with your motor. You can create multiple instances to drive multiple motors. This is typically done in the global scope (near the top of your sketch, outside of the loop() or setup() routines).
 
-There are different constructors for different feature sets. Everything after pinStep is optional, but may be required to make your motor driver work correctly with this library.
+This is where you set most of the configuration options that tell kissStepper about your motor and motor driver. To make these settings more intuitive, they are organized into two main data structures: kissPinAssignments and kissMicrostepConfig.
 
-The library is, by default, configured for the Easy Driver, Big Easy Driver, and several Allegro driver chips. However, by passing values to the MS1Config, MS2Config, and MS3Config parameters, you can reconfigure the library for other STEP/DIR drivers with up to 3 microstep select / drive mode setting pins.
-
-### Example:
+### kissPinAssignments
 ```C++
-kissStepper(uint8_t pinEnable, uint8_t pinDir, uint8_t pinStep, uint8_t pinMS1, uint8_t pinMS2, uint8_t pinMS3, uint8_t MS1Config, uint8_t MS2Config, uint8_t MS3Config); // general syntax
-kissStepper myStepper(2, 3, 4, 5, 6, 7, 84, 48, 12); // Full feature set and configuration for the Pololu 8825
-kissStepper myStepperTwo(7, 3, 4, 5, 6); // Easy Driver with software control of enable, MS1, and MS2 pins
-kissStepper myStepperThree(255, 8, 9); // Bare minimum - only two pins used
+struct kissPinAssignments
+{
+	const uint8_t pinEnable;
+	const uint8_t pinDir;
+	const uint8_t pinStep;
+	const uint8_t pinMS1;
+	const uint8_t pinMS2;
+	const uint8_t pinMS3;
+};
 ```
 
+This structure contains all of the pin assignments for your motor driver. At the very least, you need to specify pins for DIR and STEP. You can also specify pins for ENABLE and up to three drive mode/microstep select (MS1...MS3) pins.
 
-### Parameters:
-* pinEnable (**set to 255 if not used**): Allows kissStepper to automatically enable the motor driver as needed and allows you to enable or disable it using the enable() or disable() methods.
-* pinDir (**required**): Set this to the pin number for the DIR (direction) pin
-* pinStep (**required**): Set this to the pin number for the STEP pin
-* pinMS1...pinMS3 (*optional*): If you would like to be able to control the stepper motor's drive mode with your microcontroller, pass the relevant pin numbers here. Allegro chips have between 1 and 3  MS pins, depending on the step resolution. Only pass the ones you are using.
-* MS1Config (*optional*): If provided, overrides the default configuration of drive mode pin states for the first drive mode setting pin.
-* MS2Config (*optional*): If provided, overrides the default configuration of drive mode pin states for the second drive mode setting pin.
-* MS3Config (*optional*): If provided, overrides the default configuration of drive mode pin states for the third drive mode setting pin.
+You specify the pin assignments by creating an instance of the kissPinAssignments struct and passing the pin numbers as arguments to the constructor. The pin assignments are specified in this order: DIR, STEP, ENABLE, MS1, MS2, MS3.
 
-### Determining values for MSxConfig parameters
+If you want to specify pins for MS1, MS2, or MS3, but not ENABLE, use 255 for ENABLE.
+
+#### Example:
+```C++
+kissPinAssignments pinAssignments(2, 3); // Bare Minimum, 2=DIR, 3=STEP
+kissPinAssignments pinAssignments(2, 3, 4); // 2=DIR, 3=STEP, 4=ENABLE
+kissPinAssignments pinAssignments(2, 3, 4, 5, 6); // Easy Driver, 2=DIR, 3=STEP, 4=ENABLE, 5=MS1, 6=MS2
+kissPinAssignments pinAssignments(2, 3, 4, 5, 6, 7); // Big Easy Driver, 2=DIR, 3=STEP, 4=ENABLE, 5=MS1, 6=MS2, 7=MS3
+kissPinAssignments pinAssignments(2, 3, 255, 4, 5, 6); // No enable pin
+```
+
+### kissMicrostepConfig
+```C++
+struct kissMicrostepConfig
+{	
+	const driveMode_t maxMicrostepMode;
+	const uint8_t MS1Config;
+	const uint8_t MS2Config;
+	const uint8_t MS3Config;
+};
+```
+
+This structure contains settings that tell the kissStepper library about your motor driver's different drive modes and how to access them. Like with *kissPinAssignments*, you must specify the configuration values by passing them to the constructor.
+
+If you are using an Easy Driver, Big Easy Driver, Allegro A3967, A4983, A4988, or any other Allegro chip with the same microstepping pin configuration, all you need to set here is *maxMicrostepMode* (which tells kissStepper the maximum microstepping mode your motor driver is capable of). The MSxConfig values are already set up to correctly operate these motor drivers.
+
+#### Example:
+```C++
+kissMicrostepConfig microstepConfig(MICROSTEP_8); // For the Easy Driver
+kissMicrostepConfig microstepConfig(MICROSTEP_16); // For the Big Easy Driver
+```
+
+If you are using a different motor driver that uses a microstep pin configuration that differs from the A3967, A4983, or A4988, you need to add the appropriate MSxConfig arguments.
+
+
+#### Determining values for MSxConfig parameters
 These three 8-bit parameters contain the states of the drive mode select pins for all drive modes (full to 1/128 stepping).
 
 The most significant bit (left-most) is the pin state for full stepping, and the least significant bit (right-most) is the pin state for 1/128 stepping.
@@ -54,14 +86,39 @@ For example, most Allegro chips follow this pattern:
 
 So, for MS1, we get 01011000, which turns out to be the number 88, MS2 is 00111000 or 56, and MS3 is 00001000 or 8.
 
-And, if you look in the .cpp file of the library, you'll see that the default values for MS1Config, MS2Config, and MS3Config are, indeed, 88, 56, and 8, respectively.
+And, if you look in the .h file of the library, you'll see that the default values for MS1Config, MS2Config, and MS3Config are, indeed, 88, 56, and 8, respectively.
 
-With the ability to override these three parameters, you can make the kissStepper library compatible with most STEP/DIR motor drivers that support up to 1/128 microstepping.
+With the ability to override these three parameters, you can operate a wide variety of STEP/DIR type motor drivers.
 
+##### Example:
+```C++
+kissMicrostepConfig microstepConfig(MICROSTEP_32, 84, 48, 12); // For the Pololu DRV8825
+```
 
+### Instantiating kissStepper
 
+Once you have set up the configuration structures, you can create an instance of the kissStepper class. Its constructor takes three arguments: *motorSteps*, *pinAssignments*, and *microstepConfig*. The first specifies the number of full steps per revolution of your stepper motor. The last two are the configuration structures described above.
 
-## void begin(uint16_t motorSteps, driveMode_t mode, uint16_t maxRPM, uint16_t accelRPMS): Initializing the kissStepper
+### Example:
+```C++
+kissStepper(uint16_t motorSteps, kissPinAssignments pinAssignments, kissMicrostepConfig microstepConfig); // general syntax
+kissStepper myStepper(200, pinAssignments, microstepConfig);
+```
+
+If you don't need to re-use the configuration structures, you can instantiate them directly in the arguments to the kissStepper constructor. This will save a little bit of memory and make your sketch slightly smaller:
+
+### Example:
+```C++
+// for the Easy Driver
+kissStepper myStepper(
+	200,
+	kissPinAssignments(2, 3, 4, 5, 6),
+	kissMicrostepConfig(MICROSTEP_8)
+	);
+```
+
+void begin(driveMode_t mode, uint16_t maxRPM, uint16_t accelRPMS): Initializing the kissStepper
+--------------------------------------------------------------------------------------------------------------------
 
 Do this after instantiating the kissStepper. Initializes pin states and member variables. Typically done in the setup() routine.
 ### Example:
@@ -69,24 +126,23 @@ Do this after instantiating the kissStepper. Initializes pin states and member v
 void setup(void)
 {
 	...
-	myStepper.begin(motorSteps, mode, maxRPM, accelRPMS); // general syntax
-	myStepperTwo.begin(200, kissStepper::MICRO8, 60, 60); // motor has 200 st/rev, use 1/8th stepping, 60 RPM, 60 RPM/s acceleration
-    myStepperThree.begin(200); // Bare minimum - drive mode, speed, and acceleration will be set to defaults.
+	myStepper.begin(mode, maxRPM, accelRPMS); // general syntax
+	myStepperTwo.begin(MICROSTEP_8, 60, 60); // use 1/8th stepping, 60 RPM, 60 RPM/s acceleration
+    myStepperThree.begin(); // Bare minimum - drive mode, speed, and acceleration will be set to defaults.
 	...
 }
 ```
 
 ### Parameters:
-* motorSteps (**required**): The number of full steps per one revolution of your motor. For 3.6 degree/step motors, it is 100. For 1.8 degree/step motors, it is 200.
 * mode (*optional*): even if you are not controlling the MS1...MS3 pins with your microcontroller, it is useful to still pass the correct drive mode here if you want accurate speed and acceleration.
-	* kissStepper::FULL to specify full stepping (*default*)
-	* kissStepper::HALF for half stepping
-	* kissStepper::MICRO4 for 1/4 stepping
-	* kissStepper::MICRO8 for 1/8 stepping
-	* kissStepper::MICRO16 for 1/16 stepping
-	* kissStepper::MICRO32 for 1/32 stepping
-	* kissStepper::MICRO64 for 1/64 stepping
-	* kissStepper::MICRO128 for 1/128 stepping
+	* FULL_STEP to specify full stepping (*default*)
+	* HALF_STEP for half stepping
+	* MICROSTEP_4 for 1/4 stepping
+	* MICROSTEP_8 for 1/8 stepping
+	* MICROSTEP_16 for 1/16 stepping
+	* MICROSTEP_32 for 1/32 stepping
+	* MICROSTEP_64 for 1/64 stepping
+	* MICROSTEP_128 for 1/128 stepping
 * maxRPM (*optional*): the maximum speed, in RPM, that the motor will turn at. *Defaults to 30*.
 * accelRPMS (*optional*): acceleration, chosen in RPM/s. Acceleration can help to prevent skipped steps or motor stalling when driving heavy loads or moving at high speed. *Defaults to 0 (off)*.
 
@@ -124,18 +180,18 @@ True if the command was accepted, otherwise false.
 
 ## void stop(void)
 
-Tells the motor to stop. If using acceleration, it will not stop right away, but will decelerate at the chosen rate, continuing to move for some distance.
+Tells the motor to stop. The motor will stop very suddenly, even if you are using acceleration. At high speeds or with heavy loads, the lack of deceleration may cause momentum to carry the motor forward, throwing off your motor's indexing.
 ### Example:
 ```C++
 myStepper.stop();
 ```
 
-## void hardStop(void)
+## void decelerate(void)
 
-Like stop(), but will suddenly stop the motor even if acceleration is being used. At high speeds or with heavy loads, the lack of deceleration may cause momentum to carry the motor forward, throwing off your motor's indexing.
+Gradually decelerates the motor down to 0 RPM at the previously set rate of acceleration. Will only function correctly if you have set an acceleration rate in begin() or setAccel(). Otherwise, it will behave very much like stop().
 ### Example:
 ```C++
-myStepper.hardStop();
+myStepper.decelerate();
 ```
 ## void setPos(int32_t newPos)
 
@@ -175,7 +231,7 @@ mot.reverseLimit = -25600;
 
 ## void setDriveMode(driveMode_t mode)
 
-Allows changing of the drive mode after begin() is called. The drive mode can be changed at any time, even while the motor is in motion.
+Allows changing of the drive mode after begin() is called. If you specify a microstepping mode beyond what you have set as the limit when creating the kissStepper instance, the highest microstep drive mode will be used instead. The drive mode can be changed at any time, even while the motor is in motion.
 
 ### Example:
 ```C++
@@ -211,7 +267,7 @@ kissStepper::driveMode_T driveMode = myStepper.getDriveMode();
 * kissStepper::MICRO128 for 1/128 stepping
 
 ## void setMaxRPM(uint16_t newMaxRPM)
-Allows changing of the maximum RPM after begin() is called. This can be done at any time, even while the motor is in motion.
+Allows changing of the maximum RPM after begin() is called. This can be done at any time, even while the motor is in motion. If not using acceleration, a moving motor will suddenly change to the new speed. If using acceleration, a moving motor will accelerate or decelerate to the new speed at the previously specified rate.
 
 ### Example:
 ```C++

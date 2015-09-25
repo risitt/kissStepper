@@ -13,22 +13,25 @@ This software is licensed under the GPL v3
 */
 #include <kissStepper.h>
 
-// instantiate an instance of the kissStepper class for an Easy Driver
-kissStepper mot(7, 3, 4, 5, 6);
 
 const uint16_t motorFullStPerRev = 200; // number of full steps in one revolution of the test motor
-const uint16_t motorOneRev = motorFullStPerRev * kissStepper::FULL; // number of microsteps in one revolution of the test motor
+const uint16_t motorOneRev = motorFullStPerRev * FULL_STEP; // number of microsteps in one revolution of the test motor
 
+// instantiate the kissStepper class for an Easy Driver
+kissStepper mot(motorFullStPerRev,
+	kissPinAssignments(3, 4, 7, 5, 6),
+	kissMicrostepConfig(MICROSTEP_8));
+	
 // ----------------------------------------------------------------------------------------------------
 // ----------------------------------------------------------------------------------------------------
 
 void resetMotor(void)
 {
     delay(100);
-    mot.hardStop();
+    mot.stop();
     mot.setAccel(0);
     mot.setMaxRPM(60);
-    mot.setDriveMode(kissStepper::MICRO8);
+    mot.setDriveMode(MICROSTEP_8);
     mot.moveTo(0);
     while (mot.work());
     delay(100);
@@ -42,16 +45,16 @@ void setMotorDriveMode(uint8_t mode)
     switch(mode)
     {
     case 1:
-        mot.setDriveMode(kissStepper::FULL);
+        mot.setDriveMode(FULL_STEP);
         break;
     case 2:
-        mot.setDriveMode(kissStepper::HALF);
+        mot.setDriveMode(HALF_STEP);
         break;
     case 4:
-        mot.setDriveMode(kissStepper::MICRO4);
+        mot.setDriveMode(MICROSTEP_4);
         break;
     case 8:
-        mot.setDriveMode(kissStepper::MICRO8);
+        mot.setDriveMode(MICROSTEP_8);
         break;
     }
 }
@@ -276,8 +279,8 @@ void accel(void)
             Serial.println(" RPM/s");
         }
     }
-    Serial.println("\nStop");
-    mot.stop();
+    Serial.println("\nDecelerating");
+    mot.decelerate();
     startRPM = endRPM;
     startTime = micros();
     while (mot.work());
@@ -544,18 +547,11 @@ void loop(void)
 void setup(void)
 {
 
-    // test stop()
-    // test hardStop()
-    // test that extents work
-    // curRPM should always be 0 if motor is not moving, even after calling setMaxRPM with acceleration on or off
-    // check that getMaxRPM() returns same number provided to setMaxRPM()
-    // do the above with changes to drive mode, setMaxRP10M()
-
     Serial.begin(9600);
 
     // initialize the kissStepper
-    // the motor has 200 steps, use 1/8th drive mode, and set the maximum speed to 60 RPM
-    mot.begin(motorFullStPerRev, kissStepper::MICRO8, 60);
+    // use 1/8th drive mode, and set the maximum speed to 60 RPM
+    mot.begin(MICROSTEP_8, 60);
 
 
     Serial.println(F("Usage:"));
