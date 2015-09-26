@@ -7,7 +7,7 @@ Despite the existence of several excellent libraries for driving stepper motors,
 * LGPL instead of GPL, so that you can use it in your own project with few licensing restrictions (please read the LGPL V2.1 for details).
 * Low memory and processing demands
 * Consistent motor speed regardless of drive mode
-* Consistent position index (measured in 1/16th steps), so even after changing drive modes, position 1000 will refer to the same location as before
+* Consistent position index, so even after changing drive modes, position 1000 will refer to the same location as before
 * Automatic handling of MS1, MS2, and MS3 (microstep select) pins if desired
 * Automatic handling of Enable pin if desired (set to 255 if you don't want to use this feature)
 * Acceleration for driving heavier loads and reaching higher speeds before the motor stalls
@@ -19,38 +19,38 @@ Despite the existence of several excellent libraries for driving stepper motors,
 
 enum driveMode_t: uint8_t
 {
-	FULL_STEP = 128,
-	HALF_STEP = 64,
-	MICROSTEP_4 = 32,
-	MICROSTEP_8 = 16,
-	MICROSTEP_16 = 8,
-	MICROSTEP_32 = 4,
-	MICROSTEP_64 = 2,
-	MICROSTEP_128 = 1
+    FULL_STEP = 128,
+    HALF_STEP = 64,
+    MICROSTEP_4 = 32,
+    MICROSTEP_8 = 16,
+    MICROSTEP_16 = 8,
+    MICROSTEP_32 = 4,
+    MICROSTEP_64 = 2,
+    MICROSTEP_128 = 1
 };
 
 struct kissPinAssignments
 {
-	kissPinAssignments(uint8_t pinDir, uint8_t pinStep, uint8_t pinEnable = 255, uint8_t pinMS1 = 255, uint8_t pinMS2 = 255, uint8_t pinMS3 = 255)
-		: pinDir(pinDir), pinStep(pinStep), pinEnable(pinEnable), pinMS1(pinMS1), pinMS2(pinMS2), pinMS3(pinMS3) {}
-		
-	const uint8_t pinEnable;
-	const uint8_t pinDir;
-	const uint8_t pinStep;
-	const uint8_t pinMS1;
-	const uint8_t pinMS2;
-	const uint8_t pinMS3;
+    kissPinAssignments(uint8_t pinDir, uint8_t pinStep, uint8_t pinEnable = 255, uint8_t pinMS1 = 255, uint8_t pinMS2 = 255, uint8_t pinMS3 = 255)
+        : pinDir(pinDir), pinStep(pinStep), pinEnable(pinEnable), pinMS1(pinMS1), pinMS2(pinMS2), pinMS3(pinMS3) {}
+
+    const uint8_t pinEnable;
+    const uint8_t pinDir;
+    const uint8_t pinStep;
+    const uint8_t pinMS1;
+    const uint8_t pinMS2;
+    const uint8_t pinMS3;
 };
 
 struct kissMicrostepConfig
-{	
-	kissMicrostepConfig(driveMode_t maxMicrostepMode, uint8_t MS1Config = 88, uint8_t MS2Config = 56, uint8_t MS3Config = 8)
-		: maxMicrostepMode(maxMicrostepMode), MS1Config(MS1Config), MS2Config(MS2Config), MS3Config(MS3Config) {}		
-		
-	const driveMode_t maxMicrostepMode;
-	const uint8_t MS1Config;
-	const uint8_t MS2Config;
-	const uint8_t MS3Config;
+{
+    kissMicrostepConfig(driveMode_t maxMicrostepMode, uint8_t MS1Config = 88, uint8_t MS2Config = 56, uint8_t MS3Config = 8)
+        : maxMicrostepMode(maxMicrostepMode), MS1Config(MS1Config), MS2Config(MS2Config), MS3Config(MS3Config) {}
+
+    const driveMode_t maxMicrostepMode;
+    const uint8_t MS1Config;
+    const uint8_t MS2Config;
+    const uint8_t MS3Config;
 };
 
 class kissStepper
@@ -102,10 +102,10 @@ public:
     {
         return enabled;
     }
-	bool isMoving(void)
-	{
-		return moving;
-	}
+    bool isMoving(void)
+    {
+        return moving;
+    }
     bool setAccel(uint16_t RPMS);
     uint16_t getAccel(void)
     {
@@ -124,11 +124,11 @@ protected:
     const uint8_t pinMS1;
     const uint8_t pinMS2;
     const uint8_t pinMS3;
-	const uint8_t MS1Config;
-	const uint8_t MS2Config;
-	const uint8_t MS3Config;
+    const uint8_t MS1Config;
+    const uint8_t MS2Config;
+    const uint8_t MS3Config;
     const uint16_t motorStPerRev;
-	const driveMode_t maxMicrostepMode;
+    const driveMode_t maxMicrostepMode;
     uint8_t stepBit;
     volatile uint8_t *stepOut;
     int32_t pos;

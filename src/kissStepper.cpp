@@ -7,7 +7,7 @@ Despite the existence of several excellent libraries for driving stepper motors,
 * LGPL instead of GPL, so that you can use it in your own project with few licensing restrictions (please read the LGPL V2.1 for details).
 * Low memory and processing demands
 * Consistent motor speed regardless of drive mode
-* Consistent position index (measured in 1/16th steps), so even after changing drive modes, position 1000 will refer to the same location as before
+* Consistent position index, so even after changing drive modes, position 1000 will refer to the same location as before
 * Automatic handling of MS1, MS2, and MS3 (microstep select) pins if desired
 * Automatic handling of Enable pin if desired (set to 255 if you don't want to use this feature)
 * Acceleration for driving heavier loads and reaching higher speeds before the motor stalls
@@ -15,10 +15,10 @@ Despite the existence of several excellent libraries for driving stepper motors,
 #include "kissStepper.h"
 
 kissStepper::kissStepper(uint16_t motorSteps, kissPinAssignments pinAssignments, kissMicrostepConfig microstepConfig)
-	:motorStPerRev(motorSteps),
-	pinDir(pinAssignments.pinDir), pinStep(pinAssignments.pinStep), pinEnable(pinAssignments.pinEnable),
-	pinMS1(pinAssignments.pinMS1), pinMS2(pinAssignments.pinMS2), pinMS3(pinAssignments.pinMS3),
-	maxMicrostepMode(microstepConfig.maxMicrostepMode), MS1Config(microstepConfig.MS1Config), MS2Config(microstepConfig.MS2Config), MS3Config(microstepConfig.MS3Config) {}
+    :motorStPerRev(motorSteps),
+     pinDir(pinAssignments.pinDir), pinStep(pinAssignments.pinStep), pinEnable(pinAssignments.pinEnable),
+     pinMS1(pinAssignments.pinMS1), pinMS2(pinAssignments.pinMS2), pinMS3(pinAssignments.pinMS3),
+     maxMicrostepMode(microstepConfig.maxMicrostepMode), MS1Config(microstepConfig.MS1Config), MS2Config(microstepConfig.MS2Config), MS3Config(microstepConfig.MS3Config) {}
 
 // ----------------------------------------------------------------------------------------------------
 // Initialize the motor in a default state:
@@ -39,7 +39,8 @@ void kissStepper::begin(driveMode_t mode, uint16_t maxRPM, uint16_t accelRPMS)
     if (pinMS2 != 255) pinMode(pinMS2, OUTPUT);
     if (pinMS3 != 255) pinMode(pinMS3, OUTPUT);
 
-    // enable pin
+    // start the controller in a disabled state
+    enabled = false;
     if (pinEnable < 255)
     {
         pinMode(pinEnable, OUTPUT);
@@ -50,8 +51,8 @@ void kissStepper::begin(driveMode_t mode, uint16_t maxRPM, uint16_t accelRPMS)
     digitalWrite(pinDir, LOW); // forwards
     digitalWrite(pinStep, LOW);
     dir = true;
-    enabled = moving = false;
-    curRP10M = accel = stepInterval = accelInterval = accelDistance = accelState = pos = target = 0;
+    pos = 0;
+    stop();
     forwardLimit = 2147483647L;
     reverseLimit = -2147483648L;
     setDriveMode(mode);
@@ -61,9 +62,8 @@ void kissStepper::begin(driveMode_t mode, uint16_t maxRPM, uint16_t accelRPMS)
     // this allows us to convert from a standard Arduino pin number to an AVR port
     // for faster digital writes in the work() method at the cost of some memory
     // we don't use this technique for other digitalWrites because they are infrequent
-    uint8_t stepPort = digitalPinToPort(pinStep);
     stepBit = digitalPinToBitMask(pinStep);
-    stepOut = portOutputRegister(stepPort);
+    stepOut = portOutputRegister(digitalPinToPort(pinStep));
 
 }
 
@@ -95,14 +95,14 @@ void kissStepper::disable(void)
 
 void kissStepper::setDriveMode(driveMode_t mode)
 {
-	// do not allow modes beyond the limit set by the user
-	if ((uint8_t)mode < (uint8_t)maxMicrostepMode) mode = maxMicrostepMode;
-	
-	// set the pin states
-	if (pinMS1 < 255) digitalWrite(pinMS1, ((MS1Config & (uint8_t)mode) ? HIGH : LOW));
-	if (pinMS2 < 255) digitalWrite(pinMS2, ((MS2Config & (uint8_t)mode) ? HIGH : LOW));
-	if (pinMS3 < 255) digitalWrite(pinMS3, ((MS3Config & (uint8_t)mode) ? HIGH : LOW));
-	
+    // do not allow modes beyond the limit set by the user
+    if ((uint8_t)mode < (uint8_t)maxMicrostepMode) mode = maxMicrostepMode;
+
+    // set the pin states
+    if (pinMS1 < 255) digitalWrite(pinMS1, ((MS1Config & (uint8_t)mode) ? HIGH : LOW));
+    if (pinMS2 < 255) digitalWrite(pinMS2, ((MS2Config & (uint8_t)mode) ? HIGH : LOW));
+    if (pinMS3 < 255) digitalWrite(pinMS3, ((MS3Config & (uint8_t)mode) ? HIGH : LOW));
+
     driveMode = mode;
     setCurRP10M(curRP10M);
 }
@@ -134,17 +134,16 @@ void kissStepper::setCurRP10M(uint16_t newCurRP10M)
 {
     // The 4687500 "magic number" starts with the number of microseconds in 600 seconds (600000000).
     // 600 seconds is used because speed calculations are based on revolutions per 10 minutes (600 seconds)
-	// then it is divided by the maximum microstep number (128), and the result is 4687500
+    // then it is divided by the maximum microstep number (128), and the result is 4687500
     if (newCurRP10M > 0)
     {
-        stepInterval =  (4687500UL * driveMode) / ((uint32_t)motorStPerRev * newCurRP10M);
-        curRP10M = newCurRP10M;
+        uint32_t numer = 4687500UL * driveMode;
+        uint32_t denom = (uint32_t)motorStPerRev * newCurRP10M;
+        stepInterval =  numer / denom;
+        if ((numer % denom) > (denom >> 1)) stepInterval++;
     }
-    else
-    {
-        stepInterval = 4294967295UL;
-        curRP10M = 0;
-    }
+    else stepInterval = 4294967295UL;
+    curRP10M = newCurRP10M;
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -162,11 +161,9 @@ bool kissStepper::setAccel(uint16_t RPMS)
         if (RPMS > 0)
         {
             accelInterval = 100000UL / RPMS;
+            if ((100000UL % RPMS) > (RPMS >> 1)) accelInterval++;
             accelDistance = (accelDistance*accel) / RPMS;
         }
-        else
-            accelInterval = 0;
-
         accel = RPMS;
         return true;
     }
@@ -184,7 +181,7 @@ bool kissStepper::work(void)
     // compare to step size to prevent the motor from twitching back and forth around the target position;
     uint32_t stepsRemaining = abs(target - pos);
 
-    if (stepsRemaining >= (uint8_t)driveMode)
+    if (stepsRemaining >= driveMode)
     {
         uint32_t curTime = micros();
 
@@ -195,7 +192,7 @@ bool kissStepper::work(void)
             lastStepTime = curTime; // this prevents lastStepTime from lagging behind
             lastAccelTime = curTime; // this prevents lastAccelTime from lagging behind
             if (!accel) setCurRP10M(maxRP10M); // if not accelerating, start motor at full speed
-            if ((!enabled) && (pinEnable < 255)) enable(); // enable the motor controller if needed
+            if (!enabled) enable(); // enable the motor controller if needed
             moving = true;
         }
 
@@ -219,11 +216,6 @@ bool kissStepper::work(void)
                     accelState = 1;
                     lastAccelTime = curTime;
                 }
-                if ((curTime - lastAccelTime) >= accelInterval)
-                {
-                    setCurRP10M(curRP10M+1);
-                    lastAccelTime += accelInterval;
-                }
             }
             else if (((curRP10M > 1) && (stepsRemaining < accelDistance)) || (curRP10M > maxRP10M))     // decelerate
             {
@@ -232,13 +224,14 @@ bool kissStepper::work(void)
                     accelState = -1;
                     lastAccelTime = curTime;
                 }
-                if ((curTime - lastAccelTime) >= accelInterval)
-                {
-                    setCurRP10M(curRP10M-1);
-                    lastAccelTime += accelInterval;
-                }
             }
             else if (accelState != 0) accelState = 0;
+
+            if ((accelState != 0) && ((curTime - lastAccelTime) >= accelInterval))
+            {
+                setCurRP10M(curRP10M+accelState);
+                lastAccelTime += accelInterval;
+            }
         }
 
         // Step, if it's time...
@@ -248,25 +241,21 @@ bool kissStepper::work(void)
             if ((curTime - lastStepTime) >= stepInterval)
             {
                 // advance the motor
-                *stepOut |= stepBit; // like digitalWrite(pinStep, HIGH) but faster
-                dir ? pos += (uint8_t)driveMode : pos -= (uint8_t)driveMode;
-                if (accelState > 0) accelDistance += (uint8_t)driveMode;
-                else if (accelState < 0) accelDistance -= (uint8_t)driveMode;
+                *stepOut |= stepBit; // set the STEP pin to 1
+                dir ? pos += driveMode : pos -= driveMode;
+
+                // keep track of how long it will take to decelerate from the current speed
+                if (accelState != 0) accelDistance += (driveMode * accelState);
 
                 // update timing vars
                 lastStepTime += stepInterval;
             }
         }
-        else
-        {
-            // a square wave with equal time at high and low is not necessary
-            // all we need is at least 1 us step pulse (HIGH) and 1 us LOW time for Allegro chips
-			// For the Pololu chips, the minimum required pulse time is ~2 us
-            if ((curTime - lastStepTime) >= 4) // we'll use 4 us here for a bit of padding
-            {
-                *stepOut &= ~stepBit; // like digitalWrite(pinStep, LOW) but faster
-            }
-        }
+        // a square wave with equal time at high and low is not necessary
+        // all we need is at least 1 us step pulse (HIGH) and 1 us LOW time for Allegro chips
+        // For the Pololu chips, the minimum required pulse time is ~2 us
+        // we'll use 4 us here for a bit of padding
+        else if ((curTime - lastStepTime) >= 4) *stepOut &= ~stepBit; // set the STEP pin to 0
     }
     else if (moving)
     {
@@ -300,8 +289,8 @@ bool kissStepper::moveTo(int32_t newTarget)
 
 void kissStepper::decelerate(void)
 {
-	target = dir ? pos + accelDistance : pos - accelDistance;
-	target = constrain(target, reverseLimit, forwardLimit);
+    target = dir ? (pos + accelDistance) : (pos - accelDistance);
+    target = constrain(target, reverseLimit, forwardLimit);
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -325,6 +314,6 @@ void kissStepper::setPos(int32_t newPos)
     if (!moving)
     {
         pos = constrain(newPos, reverseLimit, forwardLimit);
-		target = pos;
+        target = pos;
     }
 }
