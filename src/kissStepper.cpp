@@ -153,7 +153,7 @@ void kissStepper::setCurRP10M(uint16_t newCurRP10M)
 bool kissStepper::setAccel(uint16_t RPMS)
 {
     // calculate the time interval at which to increment curRP10M
-    // and recalculate accelDistance
+    // and recalculate decelDistance
     // but only allow if not currently accelerating
     // interval is 1/10th what you might expect because it is incrementing RP10M, not RPM
     if (accelState == 0)
@@ -162,7 +162,7 @@ bool kissStepper::setAccel(uint16_t RPMS)
         {
             accelInterval = 100000UL / RPMS;
             if ((100000UL % RPMS) > (RPMS >> 1)) accelInterval++;
-            accelDistance = (accelDistance*accel) / RPMS;
+            decelDistance = (decelDistance*accel) / RPMS;
         }
         accel = RPMS;
         return true;
@@ -209,7 +209,7 @@ bool kissStepper::work(void)
         // Adding accelInterval to lastAccelTime produces more accurate timing than setting lastAccelTime = curTime
         if (accel)
         {
-            if ((stepsRemaining > accelDistance) && (curRP10M < maxRP10M))   // accelerate
+            if ((stepsRemaining > decelDistance) && (curRP10M < maxRP10M))   // accelerate
             {
                 if (accelState != 1)
                 {
@@ -217,7 +217,7 @@ bool kissStepper::work(void)
                     lastAccelTime = curTime;
                 }
             }
-            else if (((curRP10M > 1) && (stepsRemaining < accelDistance)) || (curRP10M > maxRP10M))     // decelerate
+            else if (((curRP10M > 1) && (stepsRemaining < decelDistance)) || (curRP10M > maxRP10M))     // decelerate
             {
                 if (accelState != -1)
                 {
@@ -245,7 +245,7 @@ bool kissStepper::work(void)
                 dir ? pos += driveMode : pos -= driveMode;
 
                 // keep track of how long it will take to decelerate from the current speed
-                if (accelState != 0) accelDistance += (driveMode * accelState);
+                if (accelState != 0) decelDistance += (driveMode * accelState);
 
                 // update timing vars
                 lastStepTime += stepInterval;
@@ -253,7 +253,7 @@ bool kissStepper::work(void)
         }
         // a square wave with equal time at high and low is not necessary
         // all we need is at least 1 us step pulse (HIGH) and 1 us LOW time for Allegro chips
-        // For the Pololu chips, the minimum required pulse time is ~2 us
+        // For the TI chips, the minimum required pulse time is ~2 us
         // we'll use 4 us here for a bit of padding
         else if ((curTime - lastStepTime) >= 4) *stepOut &= ~stepBit; // set the STEP pin to 0
     }
@@ -289,7 +289,7 @@ bool kissStepper::moveTo(int32_t newTarget)
 
 void kissStepper::decelerate(void)
 {
-    target = dir ? (pos + accelDistance) : (pos - accelDistance);
+    target = dir ? (pos + decelDistance) : (pos - decelDistance);
     target = constrain(target, reverseLimit, forwardLimit);
 }
 
@@ -302,7 +302,7 @@ void kissStepper::stop(void)
     curRP10M = 0;
     stepInterval = 4294967295UL;
     accelState = 0;
-    accelDistance = 0;
+    decelDistance = 0;
     moving = false;
 }
 

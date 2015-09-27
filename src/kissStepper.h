@@ -142,7 +142,7 @@ protected:
     bool moving;
     bool dir;
     int8_t accelState;
-    uint32_t accelDistance;
+    uint32_t decelDistance;
     uint32_t lastAccelTime;
     uint32_t lastStepTime;
     uint16_t accel;
