@@ -92,7 +92,7 @@ With the ability to override these three parameters, you can operate a wide vari
 
 ##### Example:
 ```C++
-kissMicrostepConfig microstepConfig(MICROSTEP_32, 84, 48, 12); // For the Pololu DRV8825
+kissMicrostepConfig microstepConfig(MICROSTEP_32, 84, 48, 12); // For the TI/Pololu DRV8825
 ```
 
 ### Instantiating kissStepper
