@@ -7,7 +7,7 @@ Despite the existence of several excellent libraries for driving stepper motors,
 * LGPL instead of GPL, so that you can use it in your own project with few licensing restrictions (please read the LGPL V2.1 for details).
 * Low memory and processing demands
 * Consistent motor speed regardless of drive mode
-* Consistent position index, so even after changing drive modes, position 1000 will refer to the same location as before
+* Consistent position index for a given value of maxMicrostepMode, regardless of the current drive mode
 * Automatic handling of MS1, MS2, and MS3 (microstep select) pins if desired
 * Automatic handling of Enable pin if desired (set to 255 if you don't want to use this feature)
 * Acceleration for driving heavier loads and reaching higher speeds before the motor stalls
@@ -19,14 +19,14 @@ Despite the existence of several excellent libraries for driving stepper motors,
 
 enum driveMode_t: uint8_t
 {
-    FULL_STEP = 128,
-    HALF_STEP = 64,
-    MICROSTEP_4 = 32,
-    MICROSTEP_8 = 16,
-    MICROSTEP_16 = 8,
-    MICROSTEP_32 = 4,
-    MICROSTEP_64 = 2,
-    MICROSTEP_128 = 1
+    FULL_STEP = 0,
+    HALF_STEP = 1,
+    MICROSTEP_4 = 2,
+    MICROSTEP_8 = 3,
+    MICROSTEP_16 = 4,
+    MICROSTEP_32 = 5,
+    MICROSTEP_64 = 6,
+    MICROSTEP_128 = 7
 };
 
 struct kissPinAssignments
@@ -57,9 +57,9 @@ class kissStepper
 {
 public:
 
-    kissStepper(uint16_t motorSteps, kissPinAssignments pinAssignments, kissMicrostepConfig microstepConfig);
+    kissStepper(kissPinAssignments pinAssignments, kissMicrostepConfig microstepConfig);
     ~kissStepper(void) {};
-    void begin(driveMode_t mode = FULL_STEP, uint16_t maxRPM = 30, uint16_t accelRPMS = 0);
+    void begin(driveMode_t mode = FULL_STEP, uint16_t maxStepsPerSec = 100, uint16_t accelStepsPerSecPerSec = 0);
     void enable(void);
     void disable(void);
     void setDriveMode(driveMode_t mode);
@@ -67,23 +67,14 @@ public:
     {
         return driveMode;
     }
-    void setMaxRPM(uint16_t newMaxRPM);
-    uint16_t getMaxRPM(void)
+    void setMaxSpeed(uint16_t stepsPerSec);
+    uint16_t getMaxSpeed(void)
     {
-        return maxRP10M / 10;
+        return maxSpeed;
     }
-    void setMaxRP10M(uint16_t newMaxRP10M);
-    uint16_t getMaxRP10M(void)
+    uint16_t getCurSpeed(void)
     {
-        return maxRP10M;
-    }
-    uint16_t getCurRPM(void)
-    {
-        return curRP10M / 10;
-    }
-    uint16_t getCurRP10M(void)
-    {
-        return curRP10M;
+        return curSpeed;
     }
     bool work(void);
     bool moveTo(int32_t newTarget);
@@ -104,9 +95,9 @@ public:
     }
     bool isMoving(void)
     {
-        return moving;
+        return (moveState != 0);
     }
-    bool setAccel(uint16_t RPMS);
+    bool setAccel(uint16_t stepsPerSecPerSec);
     uint16_t getAccel(void)
     {
         return accel;
@@ -117,7 +108,8 @@ public:
     }
     int32_t forwardLimit;
     int32_t reverseLimit;
-protected:
+	const uint8_t fullStepVal;
+private:
     const uint8_t pinEnable;
     const uint8_t pinDir;
     const uint8_t pinStep;
@@ -127,26 +119,28 @@ protected:
     const uint8_t MS1Config;
     const uint8_t MS2Config;
     const uint8_t MS3Config;
-    const uint16_t motorStPerRev;
     const driveMode_t maxMicrostepMode;
     uint8_t stepBit;
     volatile uint8_t *stepOut;
     int32_t pos;
     int32_t target;
-    uint16_t maxRP10M;
-    uint16_t curRP10M;
+    uint16_t maxSpeed;
+    uint16_t curSpeed;
+	uint8_t speedAdjustProbability;
+	uint8_t speedAdjustCounter;
     driveMode_t driveMode;
+	uint8_t stepVal;
     uint32_t stepInterval;
     uint32_t accelInterval;
     bool enabled;
-    bool moving;
-    bool dir;
     int8_t accelState;
+	int8_t moveState;
     uint32_t decelDistance;
     uint32_t lastAccelTime;
     uint32_t lastStepTime;
     uint16_t accel;
-    void setCurRP10M(uint16_t newCurRP10M);
+    void setCurSpeed(uint16_t stepsPerSec);
+	void calcDecel(void);
 };
 
 #endif
