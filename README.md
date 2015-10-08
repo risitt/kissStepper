@@ -6,7 +6,7 @@ Written by Rylee Isitt
 ## Features:
 * Fast performance, uses port access to toggle the STEP pin
 * Speed is set in full steps per second
-* Linear acceleration/deceleration set in steps/sec/sec
+* Linear acceleration/deceleration set in steps/sec<sup>2</sup>
 * Accurate speed and acceleration timing
 * Support for drivers with up to 1/128 microstepping and up to 3 microstep/drive mode select pins
 * Fully reconfigurable microstep/drive mode select pin states
@@ -26,5 +26,5 @@ GNU Lesser General Public License (LGPL) V2.1
 4. Move the folder to your Arduino libraries folder
 	* On a Windows PC, this is likely to be C:\Program Files (x86)\Arduino\libraries
 5. Restart the Arduino IDE if it was running
-6. Include the library in your sketch: **#include <kissStepper.h>**
+6. Include the library in your sketch: **#include &lt;kissStepper.h&gt;**
 7. Read the API Documentation, or see the example sketches for information on how to use the library
