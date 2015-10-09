@@ -65,10 +65,11 @@ void loop(void)
 				Serial.print(F("Target: "));
 				Serial.println(String(mot.getTarget()));
 			}
-			else if (key == F("ismoving"))
+			else if (key == F("movestate"))
 			{
-				if (moving) Serial.println(F("TRUE"));
-				else Serial.println(F("FALSE"));
+				if (mot.getMoveState() == 0) Serial.println(F("not moving"));
+				else if (mot.getMoveState() == 1) Serial.println(F("moving forward"));
+				else Serial.println(F("moving backward"));
 			}
 			else if (key == F("goto"))
 			{
@@ -134,16 +135,10 @@ void loop(void)
 			else if (key == F("setaccel"))
 			{
 				word newAccel = value.toInt();
-				bool result = mot.setAccel(newAccel);
-				if (result) {
-					Serial.print(F("Accel: "));
-					Serial.print(String(newAccel));
-					Serial.println(F(" st/s^s"));
-				}
-				else {
-					Serial.println(F("Unable to change acceleration while accelerating"));
-				}
-				
+				mot.setAccel(newAccel);
+				Serial.print(F("Accel: "));
+				Serial.print(String(newAccel));
+				Serial.println(F(" st/s^s"));
 			}
 			else if (key == F("getmode"))
 			{
@@ -215,7 +210,7 @@ void setup(void)
 	Serial.println(F("<posunit>           returns the units of measurement for the position index"));
 	Serial.println(F("<getpos>            returns the current motor position"));
 	Serial.println(F("<target>            returns the target position"));
-	Serial.println(F("<ismoving>          returns true if the motor is currently moving"));
+	Serial.println(F("<movestate>         determines if the motor is moving and in what direction"));
 	Serial.println(F("<goto x>            sends the motor to position x, -2147483648 <= x <= 2147483647"));
 	Serial.println(F("<move forward>      continuously move the motor fowards"));
 	Serial.println(F("<move backward>     continuously move the motor backwards"));

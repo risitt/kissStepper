@@ -93,11 +93,7 @@ public:
     {
         return enabled;
     }
-    bool isMoving(void)
-    {
-        return (moveState != 0);
-    }
-    bool setAccel(uint16_t stepsPerSecPerSec);
+    void setAccel(uint16_t stepsPerSecPerSec);
     uint16_t getAccel(void)
     {
         return accel;
@@ -106,6 +102,10 @@ public:
     {
         return accelState;
     }
+	int8_t getMoveState(void)
+	{
+		return moveState;
+	}
     int32_t forwardLimit;
     int32_t reverseLimit;
 	const uint8_t fullStepVal;

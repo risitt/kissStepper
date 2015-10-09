@@ -144,24 +144,17 @@ void kissStepper::setCurSpeed(uint16_t stepsPerSec)
 // This method sets the motor acceleration in RPM/s
 // ----------------------------------------------------------------------------------------------------
 
-bool kissStepper::setAccel(uint16_t stepsPerSecPerSec)
+void kissStepper::setAccel(uint16_t stepsPerSecPerSec)
 {
     // calculate the time interval at which to increment curSpeed
     // and recalculate decelDistance
-    // but only allow if not currently accelerating
-    if (accelState == 0)
-    {
-        if (stepsPerSecPerSec > 0)
-        {
-            accelInterval = 1000000UL / stepsPerSecPerSec;
-			if (((1000000UL % stepsPerSecPerSec) << 1) >= stepsPerSecPerSec) accelInterval++;
-            calcDecel();
-        }
-        accel = stepsPerSecPerSec;
-		calcDecel();
-        return true;
-    }
-    return false;
+	if (stepsPerSecPerSec > 0)
+	{
+		accelInterval = 1000000UL / stepsPerSecPerSec;
+		if (((1000000UL % stepsPerSecPerSec) << 1) >= stepsPerSecPerSec) accelInterval++;
+	}
+	accel = stepsPerSecPerSec;
+	calcDecel();
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -205,7 +198,7 @@ bool kissStepper::work(void)
         if (accel)
         {
 			uint32_t stepsRemaining = (target > pos) ? (target - pos) : (pos - target);
-			bool mustDecel = stepsRemaining < decelDistance;
+			bool mustDecel = stepsRemaining <= decelDistance;
             if (!mustDecel && (curSpeed < maxSpeed))   // accelerate
             {
                 if (accelState != 1)

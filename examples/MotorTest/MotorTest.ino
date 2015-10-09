@@ -343,8 +343,8 @@ void misc(void)
 
     delay(100);
 
-    if (!mot.isMoving()) Serial.println(F("isMoving() == FALSE (pass)"));
-    else Serial.println(F("isMoving() == TRUE (fail)"));
+    if (mot.getMoveState() == 0) Serial.println(F("getMoveState() == 0 (pass)"));
+    else Serial.println(F("getMoveState() != 0 (fail)"));
 
     delay(100);
 
@@ -369,8 +369,8 @@ void misc(void)
 
     delay(100);
 
-    if (mot.isMoving()) Serial.println(F("isMoving() == TRUE (pass)"));
-    else Serial.println(F("isMoving() == FALSE (fail)"));
+    if (mot.getMoveState() != 0) Serial.println(F("getMoveState() != 0 (pass)"));
+    else Serial.println(F("getMoveState() == 0 (fail)"));
 
     delay(100);
 
@@ -412,8 +412,8 @@ void misc(void)
 
     delay(100);
 
-    if (!mot.isMoving()) Serial.println(F("isMoving() == FALSE (pass)"));
-    else Serial.println(F("isMoving() == TRUE (fail)"));
+    if (mot.getMoveState() == 0) Serial.println(F("getMoveState() == 0 (pass)"));
+    else Serial.println(F("getMoveState() != 0 (fail)"));
 
     delay(100);
 
@@ -438,8 +438,8 @@ void misc(void)
 
     delay(100);
 
-    if (mot.isMoving()) Serial.println(F("isMoving() == TRUE (pass)"));
-    else Serial.println(F("isMoving() == FALSE (fail)"));
+    if (mot.getMoveState() != 0) Serial.println(F("getMoveState() != 0 (pass)"));
+    else Serial.println(F("getMoveState() == 0 (fail)"));
 
     delay(100);
 
@@ -473,8 +473,8 @@ void misc(void)
 
     delay(100);
 
-    if (!mot.isMoving()) Serial.println(F("isMoving() == FALSE (pass)"));
-    else Serial.println(F("isMoving() == TRUE (fail)"));
+    if (mot.getMoveState() == 0) Serial.println(F("getMoveState() == 0 (pass)"));
+    else Serial.println(F("getMoveState() != 0 (fail)"));
 
     delay(100);
 

@@ -25,7 +25,7 @@ The simplest way to use kissStepper is as follows:
 	* [getPos()](#getpos)
 	* [setPos()](#setpos)
 	* [forwardLimit and reverseLimit](#limits)
-	* [isMoving()](#ismoving)
+	* [getMoveState()](#getMoveState)
 * [Motor Speed](#speed)
 	* [setMaxSpeed()](#setMaxSpeed)
 	* [getMaxSpeed()](#getMaxSpeed)
@@ -281,14 +281,16 @@ mot.reverseLimit = -distLimit;
 ```
 
 ---
-### <a name="ismoving">bool isMoving(void)</a>
+### <a name="getMoveState">int8_t getMoveState(void)</a>
 #### Example:
 ```C++
-bool moving = myStepper.isMoving();
+int8_t moveState = myStepper.getMoveState();
 ```
 
 #### Returns:
-True if the motor is moving, otherwise false.
+* 1 if the motor is moving forwards
+* 0 if the motor is not moving
+* -1 if the motor is moving backwards
 
 ## <a name="speed">Motor Speed</a>
 The speed of the motor is expressed in steps/sec. Note that accurate speed requires that the drive mode settings are configured correctly.
@@ -383,8 +385,8 @@ a [driveMode_t](#drivemode) named constant
 When not using acceleration, your motor starts and stops very suddenly. In many cases, such as when driving light loads and moving at low speeds, this is not a problem. However, if you find that your motor is skipping steps or stalling, it may be because it is struggling to start and stop heavy loads or to change speeds more quickly than it is able. Using acceleration can prevent these issues.
 
 ---
-### <a name="setAccel">bool setAccel(uint16_t stepsPerSecPerSec)</a>
-Allows changing the rate of acceleration/deceleration after [*begin()*](#begin) is called. **This can only be done if the motor is not currently accelerating/decelerating.** 
+### <a name="setAccel">void setAccel(uint16_t stepsPerSecPerSec)</a>
+Allows changing the rate of acceleration/deceleration after [*begin()*](#begin) is called.
 
 #### Example:
 ```C++
@@ -393,9 +395,6 @@ myStepper.setAccel(200); // accelerate at 200 steps/sec/sec
 
 #### Parameters:
 * accelStepsPerSecPerSec (**required**): the new rate of acceleration, in steps/sec<sup>2</sup>
-
-#### Returns:
-True if the command was accepted, otherwise false.
 
 ---
 ### <a name="getAccel">uint16_t getAccel(void)</a>
