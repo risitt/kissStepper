@@ -102,13 +102,13 @@ public:
     {
         return accelState;
     }
-	int8_t getMoveState(void)
-	{
-		return moveState;
-	}
+    int8_t getMoveState(void)
+    {
+        return moveState;
+    }
     int32_t forwardLimit;
     int32_t reverseLimit;
-	const uint8_t fullStepVal;
+    const uint8_t fullStepVal;
 private:
     const uint8_t pinEnable;
     const uint8_t pinDir;
@@ -126,21 +126,21 @@ private:
     int32_t target;
     uint16_t maxSpeed;
     uint16_t curSpeed;
-	uint8_t speedAdjustProbability;
-	uint8_t speedAdjustCounter;
+    uint8_t speedAdjustProbability;
+    uint8_t speedAdjustCounter;
     driveMode_t driveMode;
-	uint8_t stepVal;
+    uint8_t stepVal;
     uint32_t stepInterval;
     uint32_t accelInterval;
     bool enabled;
     int8_t accelState;
-	int8_t moveState;
+    int8_t moveState;
     uint32_t decelDistance;
     uint32_t lastAccelTime;
     uint32_t lastStepTime;
     uint16_t accel;
     void setCurSpeed(uint16_t stepsPerSec);
-	void calcDecel(void);
+    void calcDecel(void);
 };
 
 #endif
