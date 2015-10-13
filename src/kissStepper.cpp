@@ -30,7 +30,7 @@ kissStepper::kissStepper(kissPinAssignments pinAssignments, kissMicrostepConfig 
 // - Set to move forwards (DIR pin low)
 // - STEP pin low
 // - Default to full step drive mode if none specified by the user
-// - Default to 30 RPM if speed not specified by the users
+// - Default to 100 steps/sec if speed not specified by the users
 // - Default to no acceleration
 // ----------------------------------------------------------------------------------------------------
 
@@ -39,13 +39,13 @@ void kissStepper::begin(driveMode_t mode, uint16_t maxStepsPerSec, uint16_t acce
     // set pins to output
     pinMode(pinDir, OUTPUT);
     pinMode(pinStep, OUTPUT);
-    if (pinMS1 != 255) pinMode(pinMS1, OUTPUT);
-    if (pinMS2 != 255) pinMode(pinMS2, OUTPUT);
-    if (pinMS3 != 255) pinMode(pinMS3, OUTPUT);
+    if (pinMS1 != pinNotSet) pinMode(pinMS1, OUTPUT);
+    if (pinMS2 != pinNotSet) pinMode(pinMS2, OUTPUT);
+    if (pinMS3 != pinNotSet) pinMode(pinMS3, OUTPUT);
 
     // start the controller in a disabled state
     enabled = false;
-    if (pinEnable < 255)
+    if (pinEnable != pinNotSet)
     {
         pinMode(pinEnable, OUTPUT);
         digitalWrite(pinEnable, HIGH);
@@ -55,13 +55,14 @@ void kissStepper::begin(driveMode_t mode, uint16_t maxStepsPerSec, uint16_t acce
     digitalWrite(pinDir, LOW); // forwards
     digitalWrite(pinStep, LOW);
     pos = 0;
-    speedAdjustCounter = 0;
+    
     stop();
-    forwardLimit = 2147483647L;
-    reverseLimit = -2147483648L;
+    forwardLimit = defaultForwardLimit;
+    reverseLimit = defaultReverseLimit;
     setDriveMode(mode);
     setMaxSpeed(maxStepsPerSec);
     setAccel(accelStepsPerSecPerSec);
+	correctionCounter = 0;
 
     // this allows us to convert from a standard Arduino pin number to an AVR port
     // for faster digital writes in the work() method at the cost of a few bytes of memory
@@ -76,7 +77,7 @@ void kissStepper::begin(driveMode_t mode, uint16_t maxStepsPerSec, uint16_t acce
 
 void kissStepper::enable(void)
 {
-    if (pinEnable < 255) digitalWrite(pinEnable, LOW);
+    if (pinEnable != pinNotSet) digitalWrite(pinEnable, LOW);
     enabled = true;
 }
 
@@ -85,7 +86,7 @@ void kissStepper::enable(void)
 
 void kissStepper::disable(void)
 {
-    if (pinEnable < 255)
+    if (pinEnable != pinNotSet)
     {
         delay(50); // this short delay stops motor momentum
         digitalWrite(pinEnable, HIGH);
@@ -105,9 +106,9 @@ void kissStepper::setDriveMode(driveMode_t mode)
 
     // set the pin states
     uint8_t bitMask = 128 >> mode;
-    if (pinMS1 < 255) digitalWrite(pinMS1, ((MS1Config & bitMask) ? HIGH : LOW));
-    if (pinMS2 < 255) digitalWrite(pinMS2, ((MS2Config & bitMask) ? HIGH : LOW));
-    if (pinMS3 < 255) digitalWrite(pinMS3, ((MS3Config & bitMask) ? HIGH : LOW));
+    if (pinMS1 != pinNotSet) digitalWrite(pinMS1, ((MS1Config & bitMask) ? HIGH : LOW));
+    if (pinMS2 != pinNotSet) digitalWrite(pinMS2, ((MS2Config & bitMask) ? HIGH : LOW));
+    if (pinMS3 != pinNotSet) digitalWrite(pinMS3, ((MS3Config & bitMask) ? HIGH : LOW));
 
     driveMode = mode;
     setCurSpeed(curSpeed);
@@ -128,15 +129,14 @@ void kissStepper::setMaxSpeed(uint16_t stepsPerSec)
 
 void kissStepper::setCurSpeed(uint16_t stepsPerSec)
 {
-    // The 1000000 "magic number" is the number of microseconds in 1 second
     if (stepsPerSec > 0)
     {
-        uint32_t numer = 500000UL;
-        uint32_t denom = (uint32_t)stepsPerSec << driveMode;
-        stepInterval = numer / denom;
-        speedAdjustProbability = ((numer % denom) * 255) / denom;
+        uint32_t uStepsPerSec = (uint32_t)stepsPerSec << driveMode;
+        stepInterval = halfSecond / uStepsPerSec;
+        errorCorrection = ((halfSecond % uStepsPerSec) << 8) / uStepsPerSec;
+		if (curSpeed == 0) lastStepTime = micros() - stepInterval;
     }
-    else stepInterval = 4294967295UL;
+    else stepInterval = maxTimeInterval;
     curSpeed = stepsPerSec;
 }
 
@@ -150,8 +150,8 @@ void kissStepper::setAccel(uint16_t stepsPerSecPerSec)
     // and recalculate decelDistance
     if (stepsPerSecPerSec > 0)
     {
-        accelInterval = 1000000UL / stepsPerSecPerSec;
-        if (((1000000UL % stepsPerSecPerSec) << 1) >= stepsPerSecPerSec) accelInterval++;
+        accelInterval = oneSecond / stepsPerSecPerSec;
+        if (((oneSecond % stepsPerSecPerSec) << 1) >= stepsPerSecPerSec) accelInterval++;
     }
     accel = stepsPerSecPerSec;
     calcDecel();
@@ -253,8 +253,8 @@ bool kissStepper::work(void)
             lastStepTime += stepInterval;
 
             // this adds a correction to the timing
-            if (speedAdjustCounter++ < speedAdjustProbability) lastStepTime++;
-
+            if (correctionCounter < errorCorrection) lastStepTime++;
+			correctionCounter += counterIncrement;
         }
 
         return true;
@@ -290,8 +290,7 @@ bool kissStepper::moveTo(int32_t newTarget)
             digitalWrite(pinDir, ((moveState == 1) ? LOW : HIGH));
 
             // reset timing
-            lastStepTime = micros();
-            lastAccelTime = lastStepTime;
+            lastAccelTime = micros();
 
             // if not accelerating, start motor at full speed
             if (!accel) setCurSpeed(maxSpeed);
@@ -318,7 +317,7 @@ void kissStepper::stop(void)
 {
     target = pos;
     curSpeed = 0;
-    stepInterval = 4294967295UL;
+    stepInterval = maxTimeInterval;
     accelState = 0;
     decelDistance = 0;
     moveState = 0;

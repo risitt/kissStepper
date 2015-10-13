@@ -110,6 +110,13 @@ public:
     int32_t reverseLimit;
     const uint8_t fullStepVal;
 private:
+	static const uint32_t halfSecond = 500000UL;
+	static const uint32_t oneSecond = 1000000UL;
+	static const uint8_t counterIncrement = 17;
+	static const uint8_t pinNotSet = 255;
+	static const int32_t defaultForwardLimit = 2147483647L;
+	static const int32_t defaultReverseLimit = -2147483648L;
+	static const uint32_t maxTimeInterval = 4294967295UL;
     const uint8_t pinEnable;
     const uint8_t pinDir;
     const uint8_t pinStep;
@@ -126,8 +133,8 @@ private:
     int32_t target;
     uint16_t maxSpeed;
     uint16_t curSpeed;
-    uint8_t speedAdjustProbability;
-    uint8_t speedAdjustCounter;
+    uint8_t errorCorrection;
+    uint8_t correctionCounter;
     driveMode_t driveMode;
     uint8_t stepVal;
     uint32_t stepInterval;

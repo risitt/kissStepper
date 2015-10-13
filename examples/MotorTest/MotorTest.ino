@@ -240,13 +240,22 @@ void benchmark(void)
 void speedTest(void)
 {
     resetMotor();
-	mot.moveTo(mot.forwardLimit);
     Serial.println(F("\nSpeed Ramp Test From 50 to 400 st/s"));
 	Serial.println(F("\nSend <s> to stop"));
+	
     for (uint16_t stPerSec = 50; stPerSec <= 400; stPerSec++)
     {
-        mot.setMaxSpeed(stPerSec);
-		measureSpeed(mot.fullStepVal * stPerSec);
+		uint32_t testDist = mot.fullStepVal * stPerSec;
+		mot.setMaxSpeed(stPerSec);
+		mot.moveTo(mot.getPos() + testDist);
+		uint32_t startTime = micros();
+		while (mot.work()) {}
+		uint32_t endTime = micros();
+		float measuredSpeed = (1000000.0 * testDist) / ((endTime - startTime) * mot.fullStepVal);
+		Serial.print(measuredSpeed,4);
+		Serial.print(F(" st/s avg ("));
+		Serial.print(String(stPerSec));
+		Serial.println(F(" st/s)"));
 		if (getSerialCommand() == "s") break;
     }
 	mot.stop();
