@@ -15,13 +15,13 @@ This software is licensed under the GPL v3
 
 // instantiate the kissStepper class for an Easy Driver
 kissStepper mot(
-	kissPinAssignments(3, 4, 7, 5, 6),
-	kissMicrostepConfig(MICROSTEP_8)
-	);
+    kissPinAssignments(3, 4, 7, 5, 6),
+    kissMicrostepConfig(MICROSTEP_8)
+);
 
 const uint16_t motorFullStPerRev = 200; // number of full steps in one revolution of the test motor
 const uint16_t motorOneRev = motorFullStPerRev * mot.fullStepVal; // number of microsteps in one revolution of the test motor
-	
+
 // ----------------------------------------------------------------------------------------------------
 // ----------------------------------------------------------------------------------------------------
 
@@ -37,7 +37,7 @@ String getSerialCommand(void)
         {
             command.trim();
             command.toLowerCase();
-			return command;
+            return command;
         }
         else if (commandIn) command += c;
     }
@@ -86,39 +86,39 @@ void setMotorDriveMode(uint8_t mode)
 
 void measureAccel(void)
 {
-	uint32_t startTime, accelTime;
-	
-	// acceleration phase
-	uint16_t startSpeed = mot.getCurSpeed();
-	if (mot.getAccel() != 0)
-	{
-		startTime = micros();
-		do
-		{
-			mot.work();
-		}
-		while (mot.getAccelState() != 0);
-		accelTime = micros() - startTime;
-	}
-	else
-	{
-		accelTime = 0;
-	}
-	uint16_t endSpeed = mot.getCurSpeed();
-	
-	// calculate acceleration
-	float measuredAccel = (((int32_t)endSpeed - startSpeed) * 1000000.0) / accelTime;
-	
-	// send results
-	Serial.print(String(startSpeed));
-	Serial.print(F("-"));
-	Serial.print(String(endSpeed));
-	Serial.print(F(" st/s @ "));
-	Serial.print(String(measuredAccel));
-	Serial.print(F(" st/s^2 ("));
-	Serial.print(String(mot.getAccel()));
-	Serial.println(F(" st/s^2)"));
-	
+    uint32_t startTime, accelTime;
+
+    // acceleration phase
+    uint16_t startSpeed = mot.getCurSpeed();
+    if (mot.getAccel() != 0)
+    {
+        startTime = micros();
+        do
+        {
+            mot.work();
+        }
+        while (mot.getAccelState() != 0);
+        accelTime = micros() - startTime;
+    }
+    else
+    {
+        accelTime = 0;
+    }
+    uint16_t endSpeed = mot.getCurSpeed();
+
+    // calculate acceleration
+    float measuredAccel = (((int32_t)endSpeed - startSpeed) * 1000000.0) / accelTime;
+
+    // send results
+    Serial.print(String(startSpeed));
+    Serial.print(F("-"));
+    Serial.print(String(endSpeed));
+    Serial.print(F(" st/s @ "));
+    Serial.print(String(measuredAccel));
+    Serial.print(F(" st/s^2 ("));
+    Serial.print(String(mot.getAccel()));
+    Serial.println(F(" st/s^2)"));
+
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -127,38 +127,38 @@ void measureAccel(void)
 
 void measureSpeed(uint32_t overDist)
 {
-	int32_t startPos = mot.getPos();
-	int32_t targetPos = mot.getTarget();
-	int32_t testEndPos = (targetPos > startPos) ? (startPos + overDist) : (startPos - overDist);
-	uint32_t startTime, endTime;
-	
-	uint16_t startSpeed = mot.getCurSpeed();
-	startTime = micros();
-	while (mot.work())
-	{
-		if ((targetPos > startPos) && (mot.getPos() >= testEndPos)) break;
-		else if ((targetPos < startPos) && (mot.getPos() <= testEndPos)) break;
-	}
-	endTime = micros();
-	uint16_t endSpeed = mot.getCurSpeed();
-	int32_t endPos = mot.getPos();
-	
-	// calculate speed
-	int32_t dist = endPos - startPos; // microsteps
-	uint32_t time = endTime - startTime; // us
-	float measuredSpeed = (1000000.0 * dist) / (time * mot.fullStepVal);
-	
-	Serial.print(String(measuredSpeed));
-	Serial.print(F(" st/s avg ("));
-	if (startSpeed == endSpeed)
-		Serial.print(String(startSpeed));
-	else
-	{
-		Serial.print(String(startSpeed));
-		Serial.print(F(" - "));
-		Serial.print(String(endSpeed));
-	}
-	Serial.println(F(" st/s)"));
+    int32_t startPos = mot.getPos();
+    int32_t targetPos = mot.getTarget();
+    int32_t testEndPos = (targetPos > startPos) ? (startPos + overDist) : (startPos - overDist);
+    uint32_t startTime, endTime;
+
+    uint16_t startSpeed = mot.getCurSpeed();
+    startTime = micros();
+    while (mot.work())
+    {
+        if ((targetPos > startPos) && (mot.getPos() >= testEndPos)) break;
+        else if ((targetPos < startPos) && (mot.getPos() <= testEndPos)) break;
+    }
+    endTime = micros();
+    uint16_t endSpeed = mot.getCurSpeed();
+    int32_t endPos = mot.getPos();
+
+    // calculate speed
+    int32_t dist = endPos - startPos; // microsteps
+    uint32_t time = endTime - startTime; // us
+    float measuredSpeed = (1000000.0 * dist) / (time * mot.fullStepVal);
+
+    Serial.print(String(measuredSpeed));
+    Serial.print(F(" st/s avg ("));
+    if (startSpeed == endSpeed)
+        Serial.print(String(startSpeed));
+    else
+    {
+        Serial.print(String(startSpeed));
+        Serial.print(F(" - "));
+        Serial.print(String(endSpeed));
+    }
+    Serial.println(F(" st/s)"));
 
 }
 
@@ -169,21 +169,21 @@ void basic(void)
 {
     // basic speed and drive mode tests
     resetMotor();
-	mot.moveTo(mot.forwardLimit);
+    mot.moveTo(mot.forwardLimit);
     Serial.println(F("\nBasic speed & mode test"));
-	for (uint8_t mode = 1; mode <= 8; mode = mode << 1)
-	{
-		Serial.print(F("\n1/"));
-		Serial.print(String(mode));
-		Serial.println(F(" step:"));
-		setMotorDriveMode(mode);
-		for (uint16_t stPerSec = 50; stPerSec <= 200; stPerSec = stPerSec << 1)
-		{
+    for (uint8_t mode = 1; mode <= 8; mode = mode << 1)
+    {
+        Serial.print(F("\n1/"));
+        Serial.print(String(mode));
+        Serial.println(F(" step:"));
+        setMotorDriveMode(mode);
+        for (uint16_t stPerSec = 50; stPerSec <= 200; stPerSec = stPerSec << 1)
+        {
             mot.setMaxSpeed(stPerSec);
-			measureSpeed(motorOneRev);
+            measureSpeed(motorOneRev);
         }
     }
-	mot.stop();
+    mot.stop();
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -241,24 +241,24 @@ void speedTest(void)
 {
     resetMotor();
     Serial.println(F("\nSpeed Ramp Test From 50 to 400 st/s"));
-	Serial.println(F("\nSend <s> to stop"));
-	
+    Serial.println(F("\nSend <s> to stop"));
+
     for (uint16_t stPerSec = 50; stPerSec <= 400; stPerSec++)
     {
-		uint32_t testDist = mot.fullStepVal * stPerSec;
-		mot.setMaxSpeed(stPerSec);
-		mot.moveTo(mot.getPos() + testDist);
-		uint32_t startTime = micros();
-		while (mot.work()) {}
-		uint32_t endTime = micros();
-		float measuredSpeed = (1000000.0 * testDist) / ((endTime - startTime) * mot.fullStepVal);
-		Serial.print(measuredSpeed,4);
-		Serial.print(F(" st/s avg ("));
-		Serial.print(String(stPerSec));
-		Serial.println(F(" st/s)"));
-		if (getSerialCommand() == "s") break;
+        uint32_t testDist = mot.fullStepVal * stPerSec;
+        mot.setMaxSpeed(stPerSec);
+        mot.moveTo(mot.getPos() + testDist);
+        uint32_t startTime = micros();
+        while (mot.work()) {}
+        uint32_t endTime = micros();
+        float measuredSpeed = (1000000.0 * testDist) / ((endTime - startTime) * mot.fullStepVal);
+        Serial.print(measuredSpeed,4);
+        Serial.print(F(" st/s avg ("));
+        Serial.print(String(stPerSec));
+        Serial.println(F(" st/s)"));
+        if (getSerialCommand() == "s") break;
     }
-	mot.stop();
+    mot.stop();
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -268,13 +268,13 @@ void speedChange(void)
 {
     // test changing of speed while moving (no acceleration)
     resetMotor();
-	mot.moveTo(mot.forwardLimit);
-	
+    mot.moveTo(mot.forwardLimit);
+
     Serial.println(F("\nSpeed change test"));
     for (uint16_t stPerSec = 50; stPerSec <= 200; stPerSec*=2)
     {
         mot.setMaxSpeed(stPerSec);
-		measureSpeed(motorOneRev);
+        measureSpeed(motorOneRev);
     }
     mot.stop();
 }
@@ -286,9 +286,9 @@ void modechange(void)
 {
     // test changing of drive mode while moving (no acceleration)
     resetMotor();
-	mot.setMaxSpeed(200);
-	mot.moveTo(mot.forwardLimit);
-	
+    mot.setMaxSpeed(200);
+    mot.moveTo(mot.forwardLimit);
+
     Serial.println(F("\nMode change test"));
     for (byte mode = 1; mode <= 8; mode*=2)
     {
@@ -296,7 +296,7 @@ void modechange(void)
         Serial.print("1/");
         Serial.print(String(mode));
         Serial.println(" step");
-		measureSpeed(motorOneRev);
+        measureSpeed(motorOneRev);
     }
     mot.stop();
 }
@@ -322,15 +322,15 @@ void accel(void)
 
             // measurements
             measureAccel();
-			measureSpeed(motorOneRev);
-			Serial.println();
-			
+            measureSpeed(motorOneRev);
+            Serial.println();
+
         }
     }
-	
+
     mot.decelerate();
-	measureAccel();
-	mot.stop();
+    measureAccel();
+    mot.stop();
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -510,28 +510,28 @@ void limits(void)
     mot.moveTo(10000);
     if (mot.getTarget() == mot.forwardLimit) Serial.println(F("moveTo() forward limit PASS"));
     else Serial.println(F("moveTo() forward limit FAIL"));
-	mot.stop();
+    mot.stop();
 
     delay(100);
 
     mot.moveTo(-10000);
     if (mot.getTarget() == mot.reverseLimit) Serial.println(F("moveTo() reverse limit PASS"));
     else Serial.println(F("moveTo() reverse limit FAIL"));
-	mot.stop();
+    mot.stop();
 
     delay(100);
 
     mot.setPos(10000);
     if (mot.getPos() == mot.forwardLimit) Serial.println(F("setPos() forward limit PASS"));
     else Serial.println(F("setPos() forward limit FAIL"));
-	mot.stop();
+    mot.stop();
 
     delay(100);
 
     mot.setPos(-10000);
     if (mot.getPos() == mot.reverseLimit) Serial.println(F("setPos() reverse limit PASS"));
     else Serial.println(F("setPos() reverse limit FAIL"));
-	mot.stop();
+    mot.stop();
 
     mot.forwardLimit = 2147483647L;
     mot.reverseLimit = -2147483648L;
@@ -574,7 +574,7 @@ void loop(void)
                 accel();
                 misc();
                 limits();
-				speedTest();
+                speedTest();
             }
             command = "";
         }
@@ -603,7 +603,7 @@ void setup(void)
     Serial.println(F("<misc> tests misc. operations"));
     Serial.println(F("<limits> test position limits"));
     Serial.println(F("<all> runs all of the above"));
-	Serial.println(F("\nSet values (in brackets) follow measured values\n"));
-	Serial.flush();
+    Serial.println(F("\nSet values (in brackets) follow measured values\n"));
+    Serial.flush();
 
 }

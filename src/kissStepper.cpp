@@ -55,14 +55,14 @@ void kissStepper::begin(driveMode_t mode, uint16_t maxStepsPerSec, uint16_t acce
     digitalWrite(pinDir, LOW); // forwards
     digitalWrite(pinStep, LOW);
     pos = 0;
-    
+
     stop();
     forwardLimit = defaultForwardLimit;
     reverseLimit = defaultReverseLimit;
     setDriveMode(mode);
     setMaxSpeed(maxStepsPerSec);
     setAccel(accelStepsPerSecPerSec);
-	correctionCounter = 0;
+    correctionCounter = 0;
 
     // this allows us to convert from a standard Arduino pin number to an AVR port
     // for faster digital writes in the work() method at the cost of a few bytes of memory
@@ -134,7 +134,7 @@ void kissStepper::setCurSpeed(uint16_t stepsPerSec)
         uint32_t uStepsPerSec = (uint32_t)stepsPerSec << driveMode;
         stepInterval = halfSecond / uStepsPerSec;
         errorCorrection = ((halfSecond % uStepsPerSec) << 8) / uStepsPerSec;
-		if (curSpeed == 0) lastStepTime = micros() - stepInterval;
+        if (curSpeed == 0) lastStepTime = micros() - stepInterval;
     }
     else stepInterval = maxTimeInterval;
     curSpeed = stepsPerSec;
@@ -254,7 +254,7 @@ bool kissStepper::work(void)
 
             // this adds a correction to the timing
             if (correctionCounter < errorCorrection) lastStepTime++;
-			correctionCounter += counterIncrement;
+            correctionCounter += counterIncrement;
         }
 
         return true;
