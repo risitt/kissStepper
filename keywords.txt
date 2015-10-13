@@ -8,6 +8,8 @@
 
 kissStepper	KEYWORD1
 driveMode_t	KEYWORD1
+kissPinAssignments	KEYWORD1
+kissMicrostepConfig	KEYWORD1
 forwardLimit	KEYWORD1
 reverseLimit	KEYWORD1
 
@@ -20,26 +22,21 @@ enable	KEYWORD2
 disable	KEYWORD2
 setDriveMode	KEYWORD2
 getDriveMode	KEYWORD2
-setMaxRPM	KEYWORD2
-getMaxRPM	KEYWORD2
-setMaxRP10M	KEYWORD2
-getMaxRP10M	KEYWORD2
-getCurRPM	KEYWORD2
-getCurRP10M	KEYWORD2
+setMaxSpeed	KEYWORD2
+getMaxSpeed	KEYWORD2
+getCurSpeed	KEYWORD2
 work	KEYWORD2
 moveTo	KEYWORD2
-moveForward	KEYWORD2
-moveBackward	KEYWORD2
-stop	KEYWORD2
 decelerate	KEYWORD2
+stop	KEYWORD2
 setPos	KEYWORD2
 getPos	KEYWORD2
 getTarget	KEYWORD2
 isEnabled	KEYWORD2
-isMoving	KEYWORD2
 setAccel	KEYWORD2
 getAccel	KEYWORD2
 getAccelState	KEYWORD2
+getMoveState	KEYWORD2
 
 #######################################
 # Constants (LITERAL1)
@@ -53,3 +50,4 @@ MICROSTEP_16	LITERAL1
 MICROSTEP_32	LITERAL1
 MICROSTEP_64	LITERAL1
 MICROSTEP_128	LITERAL1
+fullStepVal	LITERAL1
