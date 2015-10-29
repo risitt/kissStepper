@@ -29,6 +29,20 @@ enum driveMode_t: uint8_t
     MICROSTEP_128 = 7
 };
 
+enum accelState_t: int8_t
+{
+    DECELERATING = -1,
+    CONSTVEL = 0,
+    ACCELERATING = 1
+};
+
+enum moveState_t: int8_t
+{
+    BACKWARD = -1,
+    STOPPED = 0,
+    FORWARD = 1
+};
+
 struct kissPinAssignments
 {
     kissPinAssignments(uint8_t pinDir, uint8_t pinStep, uint8_t pinEnable = 255, uint8_t pinMS1 = 255, uint8_t pinMS2 = 255, uint8_t pinMS3 = 255)
@@ -55,11 +69,15 @@ struct kissMicrostepConfig
 
 class kissStepper
 {
-public:
 
-    kissStepper(kissPinAssignments pinAssignments, kissMicrostepConfig microstepConfig);
-    ~kissStepper(void) {};
-    void begin(driveMode_t mode = FULL_STEP, uint16_t maxStepsPerSec = 100, uint16_t accelStepsPerSecPerSec = 0);
+public:
+    kissStepper(kissPinAssignments pinAssignments, kissMicrostepConfig microstepConfig)
+        :pinDir(pinAssignments.pinDir), pinStep(pinAssignments.pinStep), pinEnable(pinAssignments.pinEnable),
+         pinMS1(pinAssignments.pinMS1), pinMS2(pinAssignments.pinMS2), pinMS3(pinAssignments.pinMS3),
+         maxMicrostepMode(microstepConfig.maxMicrostepMode), MS1Config(microstepConfig.MS1Config), MS2Config(microstepConfig.MS2Config), MS3Config(microstepConfig.MS3Config),
+         fullStepVal(1 << microstepConfig.maxMicrostepMode) {}
+
+    void begin(driveMode_t mode = MICROSTEP_128, uint16_t maxStepsPerSec = 100, uint16_t accelStepsPerSecPerSec = 0);
     void enable(void);
     void disable(void);
     void setDriveMode(driveMode_t mode);
@@ -98,18 +116,23 @@ public:
     {
         return accel;
     }
-    int8_t getAccelState(void)
+    accelState_t getAccelState(void)
     {
         return accelState;
     }
-    int8_t getMoveState(void)
+    moveState_t getMoveState(void)
     {
         return moveState;
     }
     int32_t forwardLimit;
     int32_t reverseLimit;
     const uint8_t fullStepVal;
+
 private:
+    static const uint8_t PINVAL_FORWARD = LOW;
+    static const uint8_t PINVAL_BACKWARD = HIGH;
+    static const uint8_t PINVAL_ENABLED = LOW;
+    static const uint8_t PINVAL_DISABLED = HIGH;
     static const uint32_t halfSecond = 500000UL;
     static const uint32_t oneSecond = 1000000UL;
     static const uint8_t counterIncrement = 17;
@@ -140,14 +163,15 @@ private:
     uint32_t stepInterval;
     uint32_t accelInterval;
     bool enabled;
-    int8_t accelState;
-    int8_t moveState;
+    accelState_t accelState;
+    moveState_t moveState;
     uint32_t decelDistance;
     uint32_t lastAccelTime;
     uint32_t lastStepTime;
     uint16_t accel;
     void setCurSpeed(uint16_t stepsPerSec);
     void calcDecel(void);
+
 };
 
 #endif
