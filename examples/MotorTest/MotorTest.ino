@@ -37,10 +37,11 @@ String getSerialCommand(void)
         {
             command.trim();
             command.toLowerCase();
-            return command;
+            break;
         }
         else if (commandIn) command += c;
     }
+    return command;
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -534,7 +535,7 @@ void limits(void)
     mot.stop();
 
     mot.forwardLimit = 2147483647L;
-    mot.reverseLimit = -2147483648L;
+    mot.reverseLimit = -2147483647L;
     mot.setPos(0);
 
 }
