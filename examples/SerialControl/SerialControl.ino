@@ -30,7 +30,7 @@ void loop(void)
     // and needs to be run repeatedly and often for smooth motion
     // you can do things this way, or you can put work() in a for/while loop
     // or you can call work() from a timer interrupt
-    bool moving = mot.work();
+    mot.work();
 
 
     // get commands from serial
