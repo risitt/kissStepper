@@ -1,3 +1,5 @@
+**PLEASE NOTE THAT THIS DOCUMENTATION IS NOW VERY OUT OF DATE. NEW DOCUMENTATION IS BEING DRAFTED.**
+
 # kissStepper API documentation for Arduino
 For a fully working example that implements most of the API methods below, please see the "SerialControl" sketch in the examples folder.
 
