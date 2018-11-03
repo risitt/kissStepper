@@ -3,39 +3,87 @@
 Control an Easy Driver through a serial connection
 
 Written by Rylee Isitt
-September 14, 2015
+September 30, 2018
 
 The code in this file is released into the public domain.
 Libraries are licensed separately (see their licenses for details).
 
 */
+
+// pinout
+static const uint8_t PIN_MS1 = 5;
+static const uint8_t PIN_MS2 = 6;
+static const uint8_t PIN_DIR = 3;
+static const uint8_t PIN_STEP = 4;
+static const uint8_t PIN_ENABLE = 7;
+
+// drive mode and steps per revolution
+static const uint8_t DRIVE_MODE = 8; // drive mode (number of microsteps taken, eg 1/8th stepping = 8)
+static const uint16_t REVOLUTION_FULL_STEPS = 200; // number of full steps in one revolution of the test motor (see your motor's specs/datasheet)
+static const uint32_t REVOLUTION_PULSES = REVOLUTION_FULL_STEPS * DRIVE_MODE; // number of microsteps in one revolution of the test motor
+
 #include <kissStepper.h>
+// instantiate the kissStepper class for an Easy Driver
+kissStepper mot(PIN_DIR, PIN_STEP, PIN_ENABLE);
 
-const uint16_t motorFullStPerRev = 200; // number of full steps in one revolution of the motor
+// ----------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------------
 
-// instantiate the kissStepper
-// This sets up an Easy Driver with software control over DIR, STEP, ENABLE, MS1, and MS2 pins
-// the pin assignments are in the order of DIR, STEP, ENABLE, MS1, and MS2, respectively
-// The Easy Driver only supports up to 1/8th microstepping, so we set MICROSTEP_8 as the maxMicrostepMode
-kissStepper mot(
-    kissPinAssignments(3, 4, 7, 5, 6),
-    kissMicrostepConfig(MICROSTEP_8)
-);
+void menu(void)
+{
+    // send instructions to serial
+    Serial.println("");
+    Serial.println(F("Usage:"));
+    Serial.println(F("<posunit>           returns the units of measurement for the position index"));
+    Serial.println(F("<getpos>            returns the current motor position"));
+    Serial.println(F("<target>            returns the target position"));
+    Serial.println(F("<state>             returns the motor's state"));
+    Serial.println(F("<goto x>            sends the motor to position x, -2147483648 <= x <= 2147483647"));
+    Serial.println(F("<rev forward>       moves the motor forward by one revolution"));
+    Serial.println(F("<rev backward>      moves the motor backward by one revolution"));
+    Serial.println(F("<move forward>      continuously move the motor fowards"));
+    Serial.println(F("<move backward>     continuously move the motor backwards"));
+    Serial.println(F("<stop>              stops the motor suddenly"));
+    Serial.println(F("<decelerate>        if acceleration is on, decelerates the motor to a stop"));
+    Serial.println(F("<getmaxspeed>       returns the maximum speed of step pin pulses (in Hz)"));
+    Serial.println(F("<setmaxspeed x>     sets the maximum speed of step pin pulses (in Hz), x <= 65535"));
+    Serial.println(F("<getcurspeed>       returns the current speed of step pin pulses (in Hz)"));
+    Serial.println(F("<getaccel>          returns the acceleration (in Hz/s)"));
+    Serial.println(F("<setaccel x>        sets the acceleration (in Hz/s), x <= 65535"));
+    Serial.println(F("<isenabled>         returns true if the motor is enabled"));
+    Serial.println(F("<enable>            enables the motor"));
+    Serial.println(F("<disable>           disables the motor"));
+    Serial.println(F("<menu>              repeat this menu"));
+    Serial.println("");
+    Serial.flush();
+}
 
+// ----------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------------
 
 void loop(void)
 {
 
-    // this line below actually makes the motor move
-    // and needs to be run repeatedly and often for smooth motion
-    // you can do things this way, or you can put work() in a for/while loop
-    // or you can call work() from a timer interrupt
-    mot.work();
+    // print menu
+    static bool menuPrinted = false;
+    if (!menuPrinted)
+    {
+        menu();
+        menuPrinted = true;
+    }
 
-
-    // get commands from serial
+    // static vars
     static String command = "";
     static bool commandIn = false;
+
+    // this line below actually makes the motor move
+    // and needs to be run repeatedly and often for smooth motion
+    // you can do things this way, or you can put move() in a for/while loop
+    // or you can call move() from a timer interrupt
+    mot.move();
+
+    // check for serial data
+    // get commands from serial
     while (Serial.available() > 0)
     {
         char c = Serial.read();
@@ -50,46 +98,91 @@ void loop(void)
             String value = command.substring(splitAt+1);
             command = "";
 
+            Serial.print(F("\n"));
             if (key == F("posunit"))
             {
                 Serial.print(F("The position is measured in 1/"));
-                Serial.print(String(mot.fullStepVal));
+                Serial.print(DRIVE_MODE);
                 Serial.println(F(" steps"));
             }
             else if (key == F("getpos"))
             {
-                Serial.print(F("Position: "));
-                Serial.println(String(mot.getPos()));
+                int32_t motorPos = mot.getPos();
+                Serial.print(F("Microsteps: "));
+                Serial.println(String(motorPos));
+                Serial.print(F("Steps: "));
+                Serial.println(String((float)motorPos / DRIVE_MODE));
+                Serial.print(F("Revolutions: "));
+                Serial.println(String((float)motorPos / REVOLUTION_PULSES));
             }
             else if (key == F("target"))
             {
                 Serial.print(F("Target: "));
                 Serial.println(String(mot.getTarget()));
             }
-            else if (key == F("movestate"))
+            else if (key == F("state"))
             {
-                if (mot.getMoveState() == 0) Serial.println(F("not moving"));
-                else if (mot.getMoveState() == 1) Serial.println(F("moving forward"));
-                else Serial.println(F("moving backward"));
+                switch (mot.getState())
+                {
+                case STATE_STOPPED:
+                    Serial.println(F("stopped"));
+                    break;
+                case STATE_STARTING:
+                    Serial.println(F("starting"));
+                    break;
+                case STATE_RUN:
+                    Serial.println(F("constant speed"));
+                    break;
+                case STATE_ACCEL:
+                    Serial.println(F("accelerating"));
+                    break;
+                case STATE_DECEL:
+                    Serial.println(F("decelerating"));
+                    break;
+                }
             }
             else if (key == F("goto"))
             {
                 int32_t targetPos = value.toInt();
-                mot.moveTo(targetPos);
                 Serial.print(F("Target: "));
                 Serial.println(String(targetPos));
+                mot.prepareMove(targetPos);
+                Serial.print(F("Profile (accel/run/decel): "));
+                Serial.print(String(mot.getAccelDist()));
+                Serial.print(F("/"));
+                Serial.print(String(mot.getRunDist()));
+                Serial.print(F("/"));
+                Serial.println(String(mot.getDecelDist()));
+            }
+            else if (key == F("rev"))
+            {
+                if (value == F("forward"))
+                {
+                    Serial.println(F("Moving forward"));
+                    mot.prepareMove(mot.getPos() + REVOLUTION_PULSES);
+                }
+                else if (value == F("backward"))
+                {
+                    Serial.println(F("Moving backward"));
+                    mot.prepareMove(mot.getPos() - REVOLUTION_PULSES);
+                }
+                else
+                {
+                    Serial.print(F("Unrecognized direction:"));
+                    Serial.println(value);
+                }
             }
             else if (key == F("move"))
             {
                 if (value == F("forward"))
                 {
-                    mot.moveTo(mot.forwardLimit);
                     Serial.println(F("Moving forward"));
+                    mot.prepareMove(mot.getForwardLimit());
                 }
                 else if (value == F("backward"))
                 {
-                    mot.moveTo(mot.reverseLimit);
                     Serial.println(F("Moving backward"));
+                    mot.prepareMove(mot.getReverseLimit());
                 }
                 else
                 {
@@ -111,27 +204,27 @@ void loop(void)
             {
                 Serial.print(F("Max Speed: "));
                 Serial.print(String(mot.getMaxSpeed()));
-                Serial.println(F(" st/s"));
+                Serial.println(F(" Hz"));
             }
             else if (key == F("setmaxspeed"))
             {
                 word newSpeed = value.toInt();
                 Serial.print(F("Max Speed: "));
                 Serial.print(String(newSpeed));
-                Serial.println(F(" st/s"));
+                Serial.println(F(" Hz"));
                 mot.setMaxSpeed(newSpeed);
             }
             else if (key == F("getcurspeed"))
             {
                 Serial.print(F("Current Speed: "));
                 Serial.print(String(mot.getCurSpeed()));
-                Serial.println(F(" st/s"));
+                Serial.println(F(" Hz"));
             }
             else if (key == F("getaccel"))
             {
                 Serial.print(F("Accel: "));
                 Serial.print(String(mot.getAccel()));
-                Serial.println(F(" st/s^s"));
+                Serial.println(F(" Hz/s"));
             }
             else if (key == F("setaccel"))
             {
@@ -139,37 +232,7 @@ void loop(void)
                 mot.setAccel(newAccel);
                 Serial.print(F("Accel: "));
                 Serial.print(String(newAccel));
-                Serial.println(F(" st/s^s"));
-            }
-            else if (key == F("getmode"))
-            {
-                Serial.print(F("Mode: 1/"));
-                Serial.print(String(1 << mot.getDriveMode()));
-                Serial.println(F(" step"));
-            }
-            else if (key == F("setmode"))
-            {
-                Serial.print(F("Mode: "));
-                if (value == "1")
-                {
-                    Serial.println(F("full step"));
-                    mot.setDriveMode(FULL_STEP);
-                }
-                else if (value == "2")
-                {
-                    Serial.println(F("1/2 step"));
-                    mot.setDriveMode(HALF_STEP);
-                }
-                else if (value == "4")
-                {
-                    Serial.println(F("1/4 step"));
-                    mot.setDriveMode(MICROSTEP_4);
-                }
-                else if (value == "8")
-                {
-                    Serial.println(F("1/8 step"));
-                    mot.setDriveMode(MICROSTEP_8);
-                }
+                Serial.println(F(" Hz/s"));
             }
             else if (key == F("isenabled"))
             {
@@ -186,6 +249,10 @@ void loop(void)
                 mot.disable();
                 Serial.println(F("Motor disabled"));
             }
+            else if (key == F("menu"))
+            {
+                menuPrinted = false;
+            }
             else
             {
                 Serial.print(F("Unrecognized command:"));
@@ -196,37 +263,33 @@ void loop(void)
     }
 }
 
+// ----------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------------
+
 void setup(void)
 {
-
     // initialize the kissStepper
-    // use 1/8th drive mode, and set the maximum speed to 200 st/s
-    mot.begin(MICROSTEP_8, 200);
+    mot.begin();
+
+    // set drive mode pins
+    // the kissStepper library does not do this for you!
+    pinMode(PIN_MS1, OUTPUT);
+    pinMode(PIN_MS2, OUTPUT);
+    digitalWrite(PIN_MS1, LOW);
+    digitalWrite(PIN_MS2, LOW);
+    switch (DRIVE_MODE)
+    {
+    case 2: // half-step
+        digitalWrite(PIN_MS1, HIGH);
+        break;
+    case 4: // quarter-step
+        digitalWrite(PIN_MS2, HIGH);
+        break;
+    case 8: // eighth-step
+        digitalWrite(PIN_MS1, HIGH);
+        digitalWrite(PIN_MS2, HIGH);
+        break;
+    }
 
     Serial.begin(9600);
-
-    // send instructions to serial
-    Serial.println("");
-    Serial.println(F("Usage:"));
-    Serial.println(F("<posunit>           returns the units of measurement for the position index"));
-    Serial.println(F("<getpos>            returns the current motor position"));
-    Serial.println(F("<target>            returns the target position"));
-    Serial.println(F("<movestate>         determines if the motor is moving and in what direction"));
-    Serial.println(F("<goto x>            sends the motor to position x, -2147483648 <= x <= 2147483647"));
-    Serial.println(F("<move forward>      continuously move the motor fowards"));
-    Serial.println(F("<move backward>     continuously move the motor backwards"));
-    Serial.println(F("<stop>              stops the motor suddenly"));
-    Serial.println(F("<decelerate>        if acceleration is on, decelerates the motor to a stop"));
-    Serial.println(F("<getmaxspeed>       returns the maximum speed of the motor (in st/s)"));
-    Serial.println(F("<setmaxspeed x>     sets the maximum speed of the motor (in st/s), x <= 65535"));
-    Serial.println(F("<getcurspeed>       returns the current speed of the motor (in st/s)"));
-    Serial.println(F("<getaccel>          returns the acceleration (in st/s^2)"));
-    Serial.println(F("<setaccel x>        sets the acceleration (in st/s^2), x <= 65535"));
-    Serial.println(F("<getmode>           returns the drive mode of the motor"));
-    Serial.println(F("<setmode x>         sets the motor's drive mode, 1 = full step, 2 = 1/2 step, 4 = 1/4 step, 8 = 1/8 step"));
-    Serial.println(F("<isenabled>         returns true if the motor is enabled"));
-    Serial.println(F("<enable>            enables the motor"));
-    Serial.println(F("<disable>           disables the motor"));
-    Serial.println("");
-
 }

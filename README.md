@@ -1,25 +1,22 @@
 # Keep it Simple Stepper (kissStepper)
-This is a lightweight Arduino library for stepper motor controllers that use STEP/DIR interfaces, such as the Allegro and TI chips, the Easy Driver, Big Easy Driver, and Pololu DRV8825
+This is a lightweight Arduino/Teensyduino library for stepper motor controllers that use STEP/DIR interfaces, such as the Allegro and TI chips, the Easy Driver, Big Easy Driver, and Pololu DRV8825
 
 Written by Rylee Isitt
 
 ## Features:
 * Fast performance, uses port access to toggle the STEP pin
-* Speed is set in full steps per second
-* Linear acceleration/deceleration set in steps/sec<sup>2</sup>
-* Accurate speed and acceleration timing
-* Support for drivers with up to 1/128 microstepping and up to 3 microstep/drive mode select pins
-* Fully reconfigurable microstep/drive mode select pin states
-	* The default configuration is for the Easy Driver, Big Easy Driver, and several of the Allegro chips
-* Consistent speed and position index regardless of drive mode
-* Can operate with as few as two pins (STEP and DIR), but can also control the ENABLE pin and the microstep/drive mode select pins
+* Speed is set in Hz (frequency of the STEP pin)
+* Approximately linear acceleration/deceleration set in Hz/s
+* Very accurate speed timing at typical motor speeds
+* Controls the STEP, DIR, and ENABLE pins of your motor controller
+* Teensyduino compatibility
 
 ## License:
 GNU Lesser General Public License (LGPL) V2.1
 
 **Please see the LICENSE file for details**
 
-## Installation Instructions:
+## Manual Installation Instructions:
 1. Download the latest release
 2. Extract the contents to your desktop
 3. Rename the containing folder "kissStepper"

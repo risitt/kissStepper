@@ -1,272 +1,126 @@
 /*
-Keep it Simple Stepper - a lightweight library for the Easy Driver, Big Easy Driver, Allegro stepper motor drivers and others that use a Step/Dir interface
+kissStepper - a lightweight library for the Easy Driver, Big Easy Driver, Allegro stepper motor drivers and others that use a Step/Dir interface
 Written by Rylee Isitt. September 21, 2015
 License: GNU Lesser General Public License (LGPL) V2.1
 
-Despite the existence of several excellent libraries for driving stepper motors, I created this one to fullfill the following needs:
-* LGPL instead of GPL, so that you can use it in your own project with few licensing restrictions (please read the LGPL V2.1 for details).
-* Low memory and processing demands
-* Consistent motor speed regardless of drive mode
-* Consistent position index for a given value of maxMicrostepMode, regardless of the current drive mode
-* Automatic handling of MS1, MS2, and MS3 (microstep select) pins if desired
-* Automatic handling of Enable pin if desired (set to 255 if you don't want to use this feature)
-* Acceleration for driving heavier loads and reaching higher speeds before the motor stalls
+Despite the existence of several excellent libraries for driving stepper motors, I created this one to fulfill the following needs:
+- Simplicity
+- Handling of enable, step, and dir pins
+- Based around an external loop
+- Approximately linear acceleration using a fast algorithm
+- High step frequency (or reasonably so, given the overhead involved)
+- Use AVR/ARM libraries and port access to increase performance while keeping the API Arduino-friendly
+- Teensy (Teensyduino) compatibility
+
+Acceleration approximation math is based on Aryeh Eiderman's "Real Time Stepper Motor Linear Ramping Just by Addition and Multiplication", available at http://hwml.com/LeibRamp.pdf
 */
+
+/*
+Optimization notes:
+- Keeping an integer copy of stepInterval improves performance at a cost of some memory
+- Making stepInterval an integer instead of float greatly decreases accuracy of accel/decel and doesn't make a noticeable difference in performance
+*/
+
 #include "kissStepper.h"
+#ifndef TEENSYDUINO
+#include <util/delay_basic.h>
+#endif
 
 // ----------------------------------------------------------------------------------------------------
-// Initialize the motor in a default state:
-// - Disabled (ENABLE pin high)
-// - Set to move forwards (DIR pin low)
-// - STEP pin low
-// - Default to highest resolution microstep mode if none specified by the user
-// - Default to 100 steps/sec if speed not specified by the users
-// - Default to no acceleration
+// ----------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------------
+// kissStepper without acceleration
+// ----------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------------
 // ----------------------------------------------------------------------------------------------------
 
-void kissStepper::begin(driveMode_t mode, uint16_t maxStepsPerSec, uint16_t accelStepsPerSecPerSec)
+kissStepperNoAccel::kissStepperNoAccel(uint8_t PIN_DIR, uint8_t PIN_STEP, uint8_t PIN_ENABLE) :
+    m_forwardLimit(DEFAULT_FORWARD_LIMIT),
+    m_reverseLimit(DEFAULT_REVERSE_LIMIT),
+    m_maxSpeed(DEFAULT_SPEED),
+    PIN_DIR(PIN_DIR),
+    PIN_STEP(PIN_STEP),
+    PIN_ENABLE(PIN_ENABLE),
+    m_distMoved(0),
+    m_pos(0),
+    m_stepBit(digitalPinToBitMask(PIN_STEP)),
+    m_stepOut(portOutputRegister(digitalPinToPort(PIN_STEP)))
+{}
+
+// ----------------------------------------------------------------------------------------------------
+// Initialize the motor in a default state
+// ----------------------------------------------------------------------------------------------------
+
+void kissStepperNoAccel::begin(void)
 {
+
     // set pins to output
-    if (pinEnable != pinNotSet) pinMode(pinEnable, OUTPUT);
-    pinMode(pinDir, OUTPUT);
-    pinMode(pinStep, OUTPUT);
-    if (pinMS1 != pinNotSet) pinMode(pinMS1, OUTPUT);
-    if (pinMS2 != pinNotSet) pinMode(pinMS2, OUTPUT);
-    if (pinMS3 != pinNotSet) pinMode(pinMS3, OUTPUT);
+    pinMode(PIN_DIR, OUTPUT);
+    pinMode(PIN_STEP, OUTPUT);
+    if (PIN_ENABLE != 255) pinMode(PIN_ENABLE, OUTPUT);
 
-    // initial position index and limits
-    pos = 0;
-    forwardLimit = defaultForwardLimit;
-    reverseLimit = defaultReverseLimit;
+    // initial STEP pin state
+    digitalWrite(PIN_STEP, LOW);
 
-    // initial pin states
+    // set to move forwards (DIR pin low)
+    setDir(true);
+
+    // start with motor controller disabled
     disable();
+
+}
+
+// ----------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------------
+
+void kissStepperNoAccel::enable(void)
+{
+    if (PIN_ENABLE != 255) digitalWrite(PIN_ENABLE, LOW);
+    m_enabled = true;
+}
+
+// ----------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------------
+
+void kissStepperNoAccel::disable(void)
+{
     stop();
-    digitalWrite(pinDir, PINVAL_FORWARD);
-    digitalWrite(pinStep, LOW);
-
-    // defaults
-    setDriveMode(mode);
-    setMaxSpeed(maxStepsPerSec);
-    setAccel(accelStepsPerSecPerSec);
-    correctionCounter = 0;
-
-    // this allows us to convert from a standard Arduino pin number to an AVR port
-    // for faster digital writes in the work() method at the cost of a few bytes of memory
-    // we don't use this technique for other digitalWrites because they are infrequent
-    stepBit = digitalPinToBitMask(pinStep);
-    stepOut = portOutputRegister(digitalPinToPort(pinStep));
-
+    if (PIN_ENABLE != 255) digitalWrite(PIN_ENABLE, HIGH);
+    m_enabled = false;
 }
 
 // ----------------------------------------------------------------------------------------------------
+// Does some basic checks, enforces limits, calculates the step interval, and switches to STATE_STARTING
 // ----------------------------------------------------------------------------------------------------
 
-void kissStepper::enable(void)
+bool kissStepperNoAccel::prepareMove(int32_t target)
 {
-    if (pinEnable != pinNotSet) digitalWrite(pinEnable, PINVAL_ENABLED);
-    enabled = true;
-}
-
-// ----------------------------------------------------------------------------------------------------
-// ----------------------------------------------------------------------------------------------------
-
-void kissStepper::disable(void)
-{
-    if (pinEnable != pinNotSet)
+    // only continue if not already moving
+    if (m_kissState == STATE_STOPPED)
     {
-        delay(50); // this short delay stops motor momentum
-        digitalWrite(pinEnable, PINVAL_DISABLED);
-    }
-    target = pos;
-    enabled = false;
-}
-
-// ----------------------------------------------------------------------------------------------------
-// ----------------------------------------------------------------------------------------------------
-
-void kissStepper::setDriveMode(driveMode_t mode)
-{
-    // do not allow modes beyond the limit set by the user
-    if ((uint8_t)mode > (uint8_t)maxMicrostepMode) mode = maxMicrostepMode;
-    stepVal = fullStepVal >> mode;
-
-    // set the pin states
-    uint8_t bitMask = 128 >> mode;
-    if (pinMS1 != pinNotSet) digitalWrite(pinMS1, ((MS1Config & bitMask) ? HIGH : LOW));
-    if (pinMS2 != pinNotSet) digitalWrite(pinMS2, ((MS2Config & bitMask) ? HIGH : LOW));
-    if (pinMS3 != pinNotSet) digitalWrite(pinMS3, ((MS3Config & bitMask) ? HIGH : LOW));
-
-    driveMode = mode;
-    setCurSpeed(curSpeed);
-}
-
-// ----------------------------------------------------------------------------------------------------
-// ----------------------------------------------------------------------------------------------------
-
-void kissStepper::setMaxSpeed(uint16_t stepsPerSec)
-{
-    maxSpeed = stepsPerSec;
-    // if the motor is moving and acceleration is off, change speed immediately
-    if ((!accel) && (moveState != STOPPED)) setCurSpeed(stepsPerSec);
-}
-
-// ----------------------------------------------------------------------------------------------------
-// The errorCorrection variable is used in work() to correct the rounding error that occurs
-// in the calculation of stepInterval. The errorCorrection variable indicates the number of times
-// out of 255 that a timing correction needs to be applied. Its value is compared to a counter,
-// correctionCounter, in order to determine whether or not to apply a correction.
-// In effect, this adds 8 bits worth of "decimal places" to stepInterval.
-// ----------------------------------------------------------------------------------------------------
-
-void kissStepper::setCurSpeed(uint16_t stepsPerSec)
-{
-    if (stepsPerSec > 0)
-    {
-        uint32_t uStepsPerSec = (uint32_t)stepsPerSec << driveMode;
-        stepInterval = halfSecond / uStepsPerSec;
-        errorCorrection = ((halfSecond % uStepsPerSec) << 8) / uStepsPerSec;
-        if (curSpeed == 0) lastStepTime = micros() - stepInterval;
-    }
-    else stepInterval = maxTimeInterval;
-    curSpeed = stepsPerSec;
-}
-
-// ----------------------------------------------------------------------------------------------------
-// This method sets the motor acceleration in RPM/s
-// ----------------------------------------------------------------------------------------------------
-
-void kissStepper::setAccel(uint16_t stepsPerSecPerSec)
-{
-    // calculate the time interval at which to increment curSpeed
-    // and recalculate decelDistance
-    if (stepsPerSecPerSec > 0)
-        accelInterval = (oneSecond + (stepsPerSecPerSec >> 1)) / stepsPerSecPerSec;
-    accel = stepsPerSecPerSec;
-    calcDecel();
-}
-
-// ----------------------------------------------------------------------------------------------------
-// This method figures out the distance required to decelerate from the current speed
-// ----------------------------------------------------------------------------------------------------
-
-void kissStepper::calcDecel(void)
-{
-    if (accel != 0)
-        decelDistance = ((uint32_t)curSpeed * curSpeed * fullStepVal) / ((uint32_t)accel << 1);
-    else
-        decelDistance = 0;
-}
-
-// ----------------------------------------------------------------------------------------------------
-// Makes the motor work. Call repeatedly and often for smooth motion.
-// Returns true if the motor is moving, otherwise false.
-// ----------------------------------------------------------------------------------------------------
-bool kissStepper::work(void)
-{
-
-    // check if it's necessary to move the motor
-    if (moveState != STOPPED)
-    {
-
-        uint32_t curTime = micros();
-
-        // Handle acceleration
-        // What happens if curTime rolls over but lastAccelTime has not?
-        // In such a situation, curTime < lastAccelTime. Wouldn't that break the timing?
-        // Let's see:
-        // curTime = 3
-        // lastAccelTime = 4294967291
-        // curTime - lastAccelTime = -4294967288
-        // But with unsigned math (as it is below), you can't get a negative result, so actually
-        // curTime - lastAccelTime = 8
-        // And it's all accounted for. It's like magic!
-        // Adding accelInterval to lastAccelTime produces more accurate timing than setting lastAccelTime = curTime
-        if (accel)
-        {
-            accelState_t newAccelState;
-            uint32_t distRemaining = ((moveState == FORWARD) ? (target - pos) : (pos - target));
-            if (distRemaining > decelDistance)
-                newAccelState = ((curSpeed == maxSpeed) ? CONSTVEL : ((curSpeed < maxSpeed) ? ACCELERATING : DECELERATING));
-            else
-                newAccelState = (curSpeed > 1) ? DECELERATING : CONSTVEL;
-
-            if (newAccelState != CONSTVEL)
-            {
-                if (accelState != newAccelState)
-                    lastAccelTime = curTime;
-
-                if ((curTime - lastAccelTime) >= accelInterval)
-                {
-                    setCurSpeed(curSpeed+newAccelState);
-                    lastAccelTime += accelInterval;
-                    calcDecel();
-                }
-            }
-            accelState = newAccelState;
-        }
-
-        // Step, if it's time...
-        // Adding stepInterval to lastStepTime produces more accurate timing than setting lastStepTime = curTime
-        if ((curTime - lastStepTime) >= stepInterval)
-        {
-            if (!(*stepOut & stepBit))
-            {
-                // check if the target is reached
-                int32_t newPos = (moveState == FORWARD) ? (pos + stepVal) : (pos - stepVal);
-                if (((moveState == FORWARD) && (newPos <= target)) || ((moveState == BACKWARD) && (newPos >= target)))
-                {
-                    // the target is not yet reached, so advance the position index
-                    pos = newPos;
-                }
-                else
-                {
-                    // the target is reached
-                    stop();
-                    return false;
-                }
-            }
-
-            // toggle the step pin
-            *stepOut ^= stepBit;
-
-            // increment lastStepTime
-            lastStepTime += stepInterval;
-
-            // this adds a correction to the timing
-            if (correctionCounter < errorCorrection) lastStepTime++;
-            correctionCounter += counterIncrement;
-        }
-
-        return true;
-    }
-    return false;
-}
-
-// ----------------------------------------------------------------------------------------------------
-// This method starts the motor moving towards a target
-// ----------------------------------------------------------------------------------------------------
-
-bool kissStepper::moveTo(int32_t newTarget)
-{
-    if (moveState == STOPPED)
-    {
-        // enable the motor controller if necessary
-        if (!enabled) enable();
-
         // constrain the target between reverseLimit and forwardLimit
-        target = constrain(newTarget, reverseLimit, forwardLimit);
+        target = constrain(target, m_reverseLimit, m_forwardLimit);
 
-        // set moveState
-        moveState = (target > pos) ? FORWARD : ((target < pos) ? BACKWARD : STOPPED);
-
-        if (moveState != STOPPED)
+        // only continue if movement is required (positive distance) and possible (positive speed)
+        if ((target != m_pos) && (m_maxSpeed > 0))
         {
-            // set the DIR pin
-            digitalWrite(pinDir, ((moveState == FORWARD) ? PINVAL_FORWARD : PINVAL_BACKWARD));
 
-            // if not accelerating, start motor at full speed
-            if (!accel) setCurSpeed(maxSpeed);
+            // enable the motor controller if necessary
+            if (!m_enabled) enable();
+
+            // set the direction
+            setDir(target > m_pos);
+
+            // set initial state
+            m_kissState = STATE_STARTING;
+
+            // calculate speed profile
+            m_distTotal = (target > m_pos) ? (target - m_pos) : (m_pos - target);
+
+            // start motor at full speed
+            // don't need to set float version of stepInterval since it isn't used during run
+            m_stepIntervalWhole = ONE_SECOND / m_maxSpeed;
+            if ((ONE_SECOND % m_maxSpeed) >= (m_maxSpeed / 2)) m_stepIntervalWhole++; // round for slightly better accuracy
 
             return true;
         }
@@ -274,13 +128,292 @@ bool kissStepper::moveTo(int32_t newTarget)
     return false;
 }
 
+/* ----------------------------------------------------------------------------------------------------
+Makes the motor move. Call repeatedly and often for smooth motion.
+Returns the kissStepper's state.
+---------------------------------------------------------------------------------------------------- */
+
+kissState_t kissStepperNoAccel::move(void)
+{
+    uint32_t curTime = micros();
+    if (m_kissState == STATE_RUN)
+    {
+        // between pulses (step pin low), check timing against stepIntervalWhole
+        // Adding stepIntervalWhole to lastStepTime produces more accurate timing than setting lastStepTime = curTime
+        if (curTime - m_lastStepTime >= m_stepIntervalWhole)
+        {
+
+            // increment lastStepTime
+            m_lastStepTime += m_stepIntervalWhole;
+
+            /*
+                Do the step pulse.
+
+                Using a pointer to a port isn't perfect, but it's still better than digitalWrite()
+
+                We need to wait an additional number of clock cycles to make the step pulse the needed width.
+                See data sheets of Allegro A3967, A4983, A4988, TI DRV8825 for minimum pulse width.
+                Allegro A3967, A4983, A4988: 1 us minimum
+                TI DRV8825: 1.9 us minimum
+            */
+            cli();
+            uint8_t oldStepOut = *m_stepOut;
+            *m_stepOut |= m_stepBit;
+#ifdef TEENSYDUINO
+            delayMicroseconds(PULSE_WIDTH_US);
+#else
+            _delay_loop_1(PULSE_WIDTH_LOOP_COUNT); // busy wait
+#endif
+            *m_stepOut = oldStepOut;
+            sei();
+
+            // adjust position
+            m_distMoved++;
+
+            // progress through speed profile
+            if (m_distMoved == m_distTotal)
+                stop();
+        }
+    }
+    else if (m_kissState == STATE_STARTING)
+    {
+        m_lastStepTime = curTime;
+        m_kissState = STATE_RUN;
+    }
+
+    return m_kissState;
+}
+
+// ----------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------------
+
+void kissStepperNoAccel::stop(void)
+{
+    updatePos();
+    m_distTotal = 0;
+    m_kissState = STATE_STOPPED;
+}
+
+// ----------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------------
+// kissStepper WITH acceleration
+// ----------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------------
+
+kissStepper::kissStepper(uint8_t PIN_DIR, uint8_t PIN_STEP, uint8_t PIN_ENABLE) :
+    kissStepperNoAccel(PIN_DIR, PIN_STEP, PIN_ENABLE),
+    m_accel(DEFAULT_ACCEL)
+{}
+
+/* ----------------------------------------------------------------------------------------------------
+Does some basic checks, enforces limits, calculates the step interval, and switches to STATE_STARTING.
+
+This method also calculates the distance for acceleration (distAccel), constant velocity (distRun),
+and total distance (distTotal).
+
+The values are the cumulative number of step pin pulses produced before it's time to change state.
+---------------------------------------------------------------------------------------------------- */
+
+bool kissStepper::prepareMove(int32_t target)
+{
+    // only continue if not already moving
+    if (m_kissState == STATE_STOPPED)
+    {
+        // constrain the target between reverseLimit and forwardLimit
+        target = constrain(target, m_reverseLimit, m_forwardLimit);
+
+        // only continue if movement is required (positive distance) and possible (positive speed)
+        if ((target != m_pos) && (m_maxSpeed > 0))
+        {
+
+            // enable the motor controller if necessary
+            if (!m_enabled) enable();
+
+            // set the direction
+            setDir(target > m_pos);
+
+            // set initial state
+            m_kissState = STATE_STARTING;
+
+            // calculate speed profile
+            uint32_t distRemaining = (target > m_pos) ? (target - m_pos) : (m_pos - target);
+            m_distAccel = m_distRun = 0;
+            m_distTotal = distRemaining;
+
+            if (m_accel != 0)
+            {
+
+                // calculate distance for accel/decel
+                // distAccel is the distance of accel/decel between 0 st/s and maxSpeed
+                m_distAccel = calcMaxAccelDist();
+
+                // if distAccel >= half the distance remaining, use a triangular speed profile
+                // otherwise use a trapezoidal profile
+                if (m_distAccel >= (distRemaining / 2))
+                {
+                    m_distAccel = distRemaining / 2;
+                    m_distRun = m_distAccel;
+                }
+                else
+                {
+                    m_distRun = distRemaining - m_distAccel;
+                }
+
+                // calculate constant multiplier
+                m_constMult = ((float)m_accel / ONE_SECOND) / ONE_SECOND;
+
+                // calculate step interval at min speed (initial step delay)
+                // minSpeedStepInterval = ONE_SECOND / sqrt(V0^2 + 2a)
+                // because initial velocity is 0:
+                // minSpeedStepInterval = ONE_SECOND / sqrt(2a)
+                uint32_t minSpeedStepInterval = m_stepInterval = ONE_SECOND / sqrt(2.0 * m_accel);
+                m_stepIntervalWhole = minSpeedStepInterval;
+                if ((m_stepIntervalWhole - minSpeedStepInterval) > 0.5) m_stepIntervalWhole++;
+
+                // calculate step interval at max speed
+                m_maxSpeedStepInterval = ONE_SECOND / m_maxSpeed;
+            }
+            else
+            {
+                // no acceleration or deceleration
+                m_distRun = distRemaining;
+
+                // if not accelerating, start motor at full speed
+                // don't need to set float version of stepInterval since it isn't used during run
+                m_stepIntervalWhole = ONE_SECOND / m_maxSpeed;
+                if ((ONE_SECOND % m_maxSpeed) >= (m_maxSpeed / 2)) m_stepIntervalWhole++; // round for slightly better accuracy
+            }
+
+            return true;
+        }
+    }
+    return false;
+}
+
+/* ----------------------------------------------------------------------------------------------------
+Makes the motor move. Call repeatedly and often for smooth motion.
+Returns the kissStepper's state.
+---------------------------------------------------------------------------------------------------- */
+
+kissState_t kissStepper::move(void)
+{
+    uint32_t curTime = micros();
+    if (m_kissState > STATE_STARTING)
+    {
+        // between pulses (step pin low), check timing against stepIntervalWhole
+        // Adding stepIntervalWhole to lastStepTime produces more accurate timing than setting lastStepTime = curTime
+        if (curTime - m_lastStepTime >= m_stepIntervalWhole)
+        {
+
+            // increment lastStepTime
+            m_lastStepTime += m_stepIntervalWhole;
+
+            /*
+                Do the step pulse.
+
+                Using a pointer to a port isn't perfect, but it's still better than digitalWrite()
+
+                We need to wait an additional number of clock cycles to make the step pulse the needed width.
+                See data sheets of Allegro A3967, A4983, A4988, TI DRV8825 for minimum pulse width.
+                Allegro A3967, A4983, A4988: 1 us minimum
+                TI DRV8825: 1.9 us minimum
+            */
+            cli();
+            uint8_t oldStepOut = *m_stepOut;
+            *m_stepOut |= m_stepBit;
+#ifdef TEENSYDUINO
+            delayMicroseconds(PULSE_WIDTH_US);
+#else
+            _delay_loop_1(PULSE_WIDTH_LOOP_COUNT); // busy wait
+#endif
+            *m_stepOut = oldStepOut;
+            sei();
+
+            // adjust position
+            m_distMoved++;
+
+            // progress through speed profile
+            if (m_kissState == STATE_RUN)
+            {
+                if (m_distMoved == m_distRun)
+                {
+                    if (m_distTotal == m_distRun)
+                        stop();
+                    else
+                    {
+                        m_kissState = STATE_DECEL;
+                        m_stepIntervalWhole = m_stepInterval = decelStep(m_stepInterval, m_constMult);
+                    }
+                }
+            }
+            else if (m_kissState == STATE_ACCEL)
+            {
+                if (m_distMoved == m_distAccel)
+                {
+                    // if the run part of the profile has non-zero distance, the value of distRun will be greater than distAccel
+                    if (m_distRun != m_distAccel)
+                    {
+                        m_kissState = STATE_RUN;
+                        // set stepInterval to maxSpeedStepInterval when entering run
+                        m_stepInterval = m_stepIntervalWhole = m_maxSpeedStepInterval;
+                    }
+                    else
+                    {
+                        m_kissState = STATE_DECEL;
+                        m_stepIntervalWhole = m_stepInterval = decelStep(m_stepInterval, m_constMult);
+                    }
+                }
+                else
+                    m_stepIntervalWhole = m_stepInterval = accelStep(m_stepInterval, m_constMult);
+            }
+            else
+            {
+                if (m_distMoved == m_distTotal)
+                    stop();
+                else
+                    m_stepIntervalWhole = m_stepInterval = decelStep(m_stepInterval, m_constMult);
+            }
+        }
+    }
+    else if (m_kissState == STATE_STARTING)
+    {
+        // start with the first part of the profile with non-zero length
+        m_lastStepTime = curTime;
+        if (m_distAccel != 0)
+            m_kissState = STATE_ACCEL;
+        else if (m_distRun != 0)
+            m_kissState = STATE_RUN;
+        else if (m_distTotal != 0)
+            m_kissState = STATE_DECEL;
+        else // this should never happen... but fail gracefully if it does
+            stop();
+    }
+
+    return m_kissState;
+}
+
 // ----------------------------------------------------------------------------------------------------
 // ----------------------------------------------------------------------------------------------------
 
 void kissStepper::decelerate(void)
 {
-    target = ((moveState == FORWARD) ? (pos + decelDistance) : (pos - decelDistance));
-    target = constrain(target, reverseLimit, forwardLimit);
+    if (m_kissState > STATE_STARTING)
+    {
+        if (m_accel > 0)
+        {
+            uint32_t distRemaining = getDistRemaining();
+            uint32_t maxDecelDist = calcDecelDist();
+            uint32_t decelDist = (maxDecelDist > distRemaining) ? distRemaining : maxDecelDist;
+            m_distAccel = 0;
+            m_distRun = 0;
+            m_distTotal = m_distMoved + decelDist;
+            m_kissState = STATE_DECEL;
+        }
+        else
+            stop();
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -288,22 +421,7 @@ void kissStepper::decelerate(void)
 
 void kissStepper::stop(void)
 {
-    target = pos;
-    curSpeed = 0;
-    stepInterval = maxTimeInterval;
-    accelState = CONSTVEL;
-    decelDistance = 0;
-    moveState = STOPPED;
-}
-
-// ----------------------------------------------------------------------------------------------------
-// ----------------------------------------------------------------------------------------------------
-
-void kissStepper::setPos(int32_t newPos)
-{
-    if (moveState == STOPPED)
-    {
-        pos = constrain(newPos, reverseLimit, forwardLimit);
-        target = pos;
-    }
+    updatePos();
+    m_distAccel = m_distRun = m_distTotal = 0;
+    m_kissState = STATE_STOPPED;
 }

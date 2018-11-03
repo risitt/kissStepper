@@ -6,12 +6,9 @@
 # Datatypes (KEYWORD1)
 #######################################
 
+kissStepperNoAccel	KEYWORD1
 kissStepper	KEYWORD1
-driveMode_t	KEYWORD1
-kissPinAssignments	KEYWORD1
-kissMicrostepConfig	KEYWORD1
-forwardLimit	KEYWORD1
-reverseLimit	KEYWORD1
+kissState_t	KEYWORD1
 
 #######################################
 # Methods and Functions (KEYWORD2)
@@ -20,34 +17,38 @@ reverseLimit	KEYWORD1
 begin	KEYWORD2
 enable	KEYWORD2
 disable	KEYWORD2
-setDriveMode	KEYWORD2
-getDriveMode	KEYWORD2
 setMaxSpeed	KEYWORD2
 getMaxSpeed	KEYWORD2
+setAccel	KEYWORD2
+getAccel	KEYWORD2
 getCurSpeed	KEYWORD2
-work	KEYWORD2
-moveTo	KEYWORD2
+prepareMove	KEYWORD2
+move	KEYWORD2
+getState	KEYWORD2
 decelerate	KEYWORD2
 stop	KEYWORD2
 setPos	KEYWORD2
 getPos	KEYWORD2
 getTarget	KEYWORD2
 isEnabled	KEYWORD2
-setAccel	KEYWORD2
-getAccel	KEYWORD2
-getAccelState	KEYWORD2
-getMoveState	KEYWORD2
+isMovingForwards	KEYWORD2
+calcMaxAccelDist	KEYWORD2
+calcDecelDist	KEYWORD2
+getAccelDist	KEYWORD2
+getRunDist	KEYWORD2
+getDecelDist	KEYWORD2
+getDistRemaining	KEYWORD2
+setForwardLimit	KEYWORD2
+getForwardLimit	KEYWORD2
+setReverseLimit	KEYWORD2
+getReverseLimit	KEYWORD2
 
 #######################################
 # Constants (LITERAL1)
 #######################################
 
-FULL_STEP	LITERAL1
-HALF_STEP	LITERAL1
-MICROSTEP_4	LITERAL1
-MICROSTEP_8	LITERAL1
-MICROSTEP_16	LITERAL1
-MICROSTEP_32	LITERAL1
-MICROSTEP_64	LITERAL1
-MICROSTEP_128	LITERAL1
-fullStepVal	LITERAL1
+STATE_STOPPED	LITERAL1
+STATE_STARTING	LITERAL1
+STATE_SLEW	LITERAL1
+STATE_ACCEL	LITERAL1
+STATE_DECEL	LITERAL1
