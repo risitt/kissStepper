@@ -1,7 +1,7 @@
 * Main goal is to work with the Easy Driver and Big Easy Driver designed by Brian Schmalz.
 * Secondary goal is to support Allegro stepper motor driver chips using a Step/Direction interface.
 * This library is meant to be lightweight, well suited to applications where memory and clock cycles are limited.
-* Care has been taken to avoid floating point numbers, expensive math operations, trig, etc. Please keep it that way.
+* Care has been taken to avoid floating point numbers and expensive math operations where possible (with the exception of some of the acceleration math). Please keep it that way.
 * Avoid feature creep.
 * Does your change fix a bug? Then great!
 * Does your change add a brand new feature at the cost of slightly more memory/clock cycles needed? Then think twice.
@@ -13,6 +13,6 @@
 * Use uintx_t/intx_t types, as they improve compatibility across different devices.
 * Any changes to timing or acceleration code should be carefully tested
 	* Measure frequency of STEP pin to make sure the output is an accurate and stable square wave
-	* Use an oscilloscope if available
+	* Use an oscilloscope or logic analyzer if available
 	* Or, time how long it takes (use micros()) for the motor to move a fixed distance then back-calculate RPM, accel, etc to make sure the timing matches the set values
 	* Just listening to and watching the motor is also quite instructive...
