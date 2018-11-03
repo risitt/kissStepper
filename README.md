@@ -16,12 +16,8 @@ GNU Lesser General Public License (LGPL) V2.1
 
 **Please see the LICENSE file for details**
 
-## Manual Installation Instructions:
-1. Download the latest release
-2. Extract the contents to your desktop
-3. Rename the containing folder "kissStepper"
-4. Move the folder to your Arduino libraries folder
-	* On a Windows PC, this is likely to be C:\Program Files (x86)\Arduino\libraries
-5. Restart the Arduino IDE if it was running
-6. Include the library in your sketch: **#include &lt;kissStepper.h&gt;**
-7. Read the API Documentation, or see the example sketches for information on how to use the library
+## Installation Instructions:
+1. Download the source code ZIP for the latest release of the library: https://github.com/risitt/kissStepper/releases
+2. In the Arduino IDE main menu, select Sketch > Include Library > Add .ZIP Library, then select the downloaded file and click on "Open"
+3. Include the library in your sketch: **#include &lt;kissStepper.h&gt;**
+4. Read the API Documentation, or see the example sketches for information on how to use the library
