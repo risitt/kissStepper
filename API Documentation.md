@@ -1,465 +1,522 @@
-**PLEASE NOTE THAT THIS DOCUMENTATION IS NOW VERY OUT OF DATE. NEW DOCUMENTATION IS BEING DRAFTED.**
-
-# kissStepper API documentation for Arduino
+# kissStepper API documentation for Arduino and Teensyduino
 For a fully working example that implements most of the API methods below, please see the "SerialControl" sketch in the examples folder.
 
 The simplest way to use kissStepper is as follows:
 
-1. Create a new instance in the global scope
-2. Call [*begin()*](#begin) with your chosen settings in your sketch's setup() routine
-3. Place [*work()*](#work) in your loop() routine where it will be repeatedly called at regular intervals
-4. You can then use [*moveTo()*](#moveto), [*getPos()*](#getpos), and [*stop()*](#stop) to move the motor where you want, stop it where you want, and save its current position for later use (such as returning to certain positions).
+1. Include kissStepper.h into your sketch
+2. Create a new instance in the global scope
+3. Call [*begin()*](#begin) in your sketch's setup() routine
+4. Place [*move()*](#move) in your loop() routine where it will be repeatedly called at regular intervals
+5. You can then use [*setMaxSpeed()*](#setMaxSpeed), [*setAccel()*](#setAccel), [*prepareMove()*](#prepareMove), [*stop()*](#stop), [*decelerate()*](#decelerate), and [*getPos()*](#getPos) to set motor speed, move the motor where you want, stop it where you want, and save its current position for later use (such as returning to certain positions)
 
 ## Table of Contents
-* [Configuring and Instantiating kissStepper](#configinstance)
-	* [kissPinAssignments](#kissPinAssignments)
-	* [kissMicrostepConfig](#kissMicrostepConfig)
-		* [Determining values for MSxConfig parameters](#MSxConfig)
-	* [Instantiating kissStepper](#instantiate)
-* [begin()](#begin)
-* [work()](#work)
-* [Motor Positioning](#positioning)
-	* [What the Position Means](#posmeaning)
-		* [fullStepVal](#fullStepVal)
-	* [moveTo()](#moveto)
-	* [getTarget()](#gettarget)
-	* [stop()](#stop)
-	* [getPos()](#getpos)
-	* [setPos()](#setpos)
-	* [forwardLimit and reverseLimit](#limits)
-	* [getMoveState()](#getMoveState)
-* [Motor Speed](#speed)
-	* [setMaxSpeed()](#setMaxSpeed)
-	* [getMaxSpeed()](#getMaxSpeed)
-	* [getCurSpeed()](#getCurSpeed)
-* [Drive modes](#drivemodes)
-	* [drivemode_t](#drivemode)
-	* [setDriveMode()](#setDriveMode)
-	* [getDriveMode()](#getDriveMode)
-* [Acceleration](#accel)
-	* [setAccel()](#setAccel)
-	* [getAccel()](#getAccel)
-	* [decelerate()](#decelerate)
-	* [getAccelState()](#getAccelState)
-* [Enabling and Disabling the Controller](#enabledisable)
-	* [enable()](#enable)
-	* [disable()](#disable)
-	* [isEnabled()](#isEnabled)
+* [Installation](#installation)
+    * [Automatic Installation](#installauto)
+    * [Manual Installation](#installmanual)
+* [Implementation Notes](#Implementation)
+    * [Instantiation and Initialization](#setup)
+    * [Full-stepping/Microstepping](#stepconfig)
+    * [Position, Speed, and Acceleration Units of Measurement](#units)
+    * [When "Forwards" is Not Forwards](#direction)
+    * [Disabling Acceleration](#noAccel)
+    * [Driving Multiple Motors](#multipleMotors)
+* [Library Reference](#ref)
+    * [Instantiation and Initialization](#refSetup)
+        * [The kissStepper Class](#kissStepper)
+        * [The kissStepperNoAccel Class](#kissStepperNoAccel)
+        * [begin](#begin)
+    * [Essential Methods and Types](#essential)
+        * [The kissState_t enum Type](#state)
+        * [getPos](#getPos)
+        * [move](#move)
+        * [prepareMove](#prepareMove)
+        * [stop](#stop)
+    * [Working with Speed](#speed)
+        * [getCurSpeed](#getCurSpeed)
+        * [getMaxSpeed](#getMaxSpeed)
+        * [setMaxSpeed](#setMaxSpeed)
+    * [Working with Acceleration](#accel)
+        * [calcDecelDist](#calcDecelDist)
+        * [calcMaxAccelDist](#calcMaxAccelDist)
+        * [decelerate](#decelerate)
+        * [getAccel](#getAccel)
+        * [getAccelDist](#getAccelDist)
+        * [getDecelDist](#getDecelDist)
+        * [getRunDist](#getRunDist)
+        * [setAccel](#setAccel)
+    * [Determining Library/Motor Status](#status)
+        * [getDistRemaining](#getDistRemaining)
+        * [getState](#getState)
+        * [getTarget](#getTarget)
+        * [isEnabled](#isEnabled)
+        * [isMovingForwards](#isMovingForwards)
+    * [Setting/Getting Position Limits](#limits)
+        * [getForwardLimit](#getForwardLimit)
+        * [getReverseLimit](#getReverseLimit)
+        * [setForwardLimit](#setForwardLimit)
+        * [setReverseLimit](#setReverseLimit)
+    * [Other Methods](#other)
+        * [disable](#disable)
+        * [enable](#enable)
+        * [setPos](#setPos)
 
-## <a name="configinstance">Configuring and Instantiating kissStepper</a>
-You must create an instance of the kissStepper class before you can interact with your motor. You can create multiple instances to drive multiple motors. This is typically done in the global scope (near the top of your sketch, outside of the loop() or setup() routines).
+----
 
-This is where you set most of the configuration options that tell kissStepper about your motor and motor driver. To make these settings more intuitive, they are organized into two main data structures: [*kissPinAssignments*](#kissPinAssignments) and [*kissMicrostepConfig*](#kissMicrostepConfig).
+## <a name="installation">Installation</a>
 
----
-### <a name="kissPinAssignments">kissPinAssignments</a>
-```C++
-struct kissPinAssignments
-{
-	const uint8_t pinEnable;
-	const uint8_t pinDir;
-	const uint8_t pinStep;
-	const uint8_t pinMS1;
-	const uint8_t pinMS2;
-	const uint8_t pinMS3;
-};
-```
+### <a name="installauto">Automatic Installation</a>
 
-This structure contains all of the pin assignments for your motor driver. At the very least, you need to specify pins for DIR and STEP. You can also specify pins for ENABLE and up to three drive mode/microstep select (MS1...MS3) pins.
+1. Download the source code ZIP for the latest release of the library: https://github.com/risitt/kissStepper/releases
+2. In the Arduino IDE main menu, select Sketch > Include Library > Add .ZIP Library, then select the downloaded file and click on "Open"
 
-You specify the pin assignments by creating an instance of the *kissPinAssignments* struct and passing the pin numbers as arguments to the constructor. The pin assignments are specified in this order: DIR, STEP, ENABLE, MS1, MS2, MS3.
+### <a name="installmanual">Manual Installation</a>
 
-If you want to specify pins for MS1, MS2, or MS3, but not ENABLE, use 255 for ENABLE.
+1. Download the source code ZIP for the latest release of the library: https://github.com/risitt/kissStepper/releases
+2. In the Arduino IDE’s libraries folder (in Windows, this is located in %USERPROFILE%\Documents\Arduino\libraries) extract the contents of the ZIP file into a folder named “kissStepper”
+3. Restart the Arduino IDE
 
-#### Example:
-```C++
-kissPinAssignments pinAssignments(2, 3); // Bare Minimum, 2=DIR, 3=STEP
-kissPinAssignments pinAssignments(2, 3, 4); // 2=DIR, 3=STEP, 4=ENABLE
-kissPinAssignments pinAssignments(2, 3, 4, 5, 6); // Easy Driver, 2=DIR, 3=STEP, 4=ENABLE, 5=MS1, 6=MS2
-kissPinAssignments pinAssignments(2, 3, 4, 5, 6, 7); // Big Easy Driver, 2=DIR, 3=STEP, 4=ENABLE, 5=MS1, 6=MS2, 7=MS3
-kissPinAssignments pinAssignments(2, 3, 255, 4, 5, 6); // No enable pin
-```
+----
 
----
-### <a name="kissMicrostepConfig">kissMicrostepConfig</a>
-```C++
-struct kissMicrostepConfig
-{	
-	const driveMode_t maxMicrostepMode;
-	const uint8_t MS1Config;
-	const uint8_t MS2Config;
-	const uint8_t MS3Config;
-};
-```
+## <a name="Implementation">Implementation Notes</a>
 
-This structure contains settings that tell the kissStepper library about your motor driver's different drive modes and how to access them. Like with *kissPinAssignments*, you must specify the configuration values by passing them to the constructor.
+### <a name="setup">Instantiation and Initialization</a>
 
-If you are using an Easy Driver, Big Easy Driver, Allegro A3967, A4983, A4988, or any other Allegro chip with the same microstepping pin configuration, all you need to set here is [*maxMicrostepMode*](#drivemode) (which tells kissStepper the maximum microstepping mode your motor driver is capable of). The [*MSxConfig*](#MSxConfig) values are already set up to correctly operate these motor drivers.
+To use the kissStepper library, you must first include the kissStepper header file into your sketch.
 
-If you are using a different motor driver that uses a microstep pin configuration that differs from the A3967, A4983, or A4988, and still want to automatically control these pins, you need to add the appropriate [*MSxConfig*](#MSxConfig) arguments.
+Then, you must create an instance of the kissStepper class before you can interact with your motor. You can create multiple instances to drive multiple motors. This is typically done in the global scope (near the top of your sketch, outside of the loop or setup routines).
+
+This is also where you specify the pinout for the STEP, DIR, and (if desired) ENABLE pins on your motor controller. If you want to control the ENABLE pin yourself, omit the PIN_ENABLE parameter from the kissStepper constructor.
 
 #### Example:
 ```C++
-kissMicrostepConfig microstepConfig(MICROSTEP_8); // For the Easy Driver
-kissMicrostepConfig microstepConfig(MICROSTEP_16); // For the Big Easy Driver
-kissMicrostepConfig microstepConfig(MICROSTEP_32, 84, 48, 12); // For the TI/Pololu DRV8825
+include <kissStepper.h>
+static const uint8_t PIN_DIR = 3;
+static const uint8_t PIN_STEP = 4;
+static const uint8_t PIN_ENABLE = 7;
+kissStepper motor(PIN_DIR, PIN_STEP, PIN_ENABLE); // including the enable pin
+// kissStepper motor(PIN_DIR, PIN_STEP); // omitting the enable pin
 ```
 
-#### <a name="MSxConfig">Determining values for MSxConfig parameters</a>
-These three 8-bit parameters contain the states of the drive mode select pins for all drive modes (full to 1/128 stepping).
-
-The most significant bit (left-most) is the pin state for full stepping, and the least significant bit (right-most) is the pin state for 1/128 stepping.
-
-For example, most Allegro chips follow this pattern:
-
-    MODE    MS1    MS2    MS3    MSxConfig BIT#
-    FULL    0      0      0      7
-    HALF    1      0      0      6
-    1/4     0      1      0      5
-    1/8     1      1      0      4
-    1/16    1      1      1      3
-    1/32    n/a    n/a    n/a    2
-    1/64    n/a    n/a    n/a    1
-    1/128   n/a    n/a    n/a    0
-
-So, for MS1, we get 01011000, which turns out to be the number 88, MS2 is 00111000 or 56, and MS3 is 00001000 or 8.
-
-And, if you look in the .h file of the library, you'll see that the default values for *MS1Config*, *MS2Config*, and *MS3Config* are, indeed, 88, 56, and 8, respectively.
-
-With the ability to override these three parameters, you can operate a wide variety of STEP/DIR type motor drivers.
-
----
-### <a name="instantiate">Instantiating kissStepper</a>
-Once you have set up the configuration structures, you can create an instance of the kissStepper class. Its constructor takes two arguments: *pinAssignments*, and *microstepConfig*. These are the configuration structures described above.
+In addition to instantiation, you must initialize the kissStepper library. This is typically done, once, in the setup() routine of your sketch. As with several other Arduino libraries, this is done with a [*begin()*](#begin) method. Failing to do this will leave your motor controller in an unknown state for an extended duration, which may cause unwanted behavior.
 
 #### Example:
-```C++
-kissStepper(kissPinAssignments pinAssignments, kissMicrostepConfig microstepConfig); // general syntax
-kissStepper myStepper(pinAssignments, microstepConfig);
-```
-
-If you don't need to re-use the configuration structures, you can instantiate them directly in the arguments to the kissStepper constructor. This will save a little bit of memory and make your sketch slightly smaller:
-
-#### Example:
-```C++
-// for the Easy Driver
-kissStepper myStepper(
-	kissPinAssignments(2, 3, 4, 5, 6),
-	kissMicrostepConfig(MICROSTEP_8)
-	);
-```
-
-## <a name="begin">void begin(driveMode_t mode, uint16_t maxStepsPerSec, uint16_t accelStepsPerSecPerSec): Initializing the kissStepper</a>
-You must do this (once) after instantiating the kissStepper. Initializes pin states and member variables. Typically done in the setup() routine.
-
-### Example:
 ```C++
 void setup(void)
 {
-	...
-	myStepper.begin(mode, maxStepsPerSec, accelStepsPerSecPerSec); // general syntax
-	myStepperTwo.begin(MICROSTEP_8, 200, 200); // use 1/8th stepping, 200 st/sec, 200 st/sec/sec acceleration
-    myStepperThree.begin(); // Bare minimum. Drive mode, speed, and acceleration will be set to defaults.
-	...
+    ...
+    motor.begin();
+    ...
 }
 ```
 
-### Parameters:
-* mode (*optional*): a named constant from [*drivemode_t*](#drivemode), tells the library what drive mode to use.  You should still provide the correct drive mode here, even if you are not using kissStepper to control the microstep/drive mode select pins. Failure to do so will result in incorrect timing of steps. *Defaults to FULL_STEP.*
-* maxStepsPerSec (*optional*): the maximum speed, in full steps per second, that the motor will turn at. *Defaults to 100*.
-* accelStepsPerSecPerSec (*optional*): [acceleration](#accel), chosen in steps/sec<sup>2</sup>. *Defaults to 0 (off)*.
+Once you have included the library header, instantiated the class, and initialized it, you are ready to use the library to control your motor.
 
-## <a name="work">bool work(void)</a>
-This method does most of the heavy lifting. **You must call it repeatedly and often**. A good place to do this is inside the loop() routine. You can also use it in while loops, or call it at regular intervals using a timer interrupt.
+### <a name="stepconfig">Full-stepping/Microstepping</a>
 
-### Example:
-```C++
-void loop(void)
-{
-	...
-    bool isMoving = myStepper.work();
-	...
-}
-```
+The library does not handle your motor driver board’s microstep select pins and is completely unaware of how you have set them up. This is a deliberate decision to keep the library simple while ensuring maximum compatibility with a wide variety of motor drivers. This means you need to look at your motor driver board’s specifications/data sheet and set the microstep select pins yourself, either in code or by using pull-up/pull-down resistors.
 
-### Returns:
-True if the motor is moving, otherwise false.
+### <a name="units">Position, Speed, and Acceleration Units of Measurement</a>
 
-## <a name="positioning">Motor Positioning</a>
-The following methods and variables allow you to make the motor move, figure out where it is, and limit its motion to a range of positions.
+When working with the library, you will be using numbers to represent motor position, speed, and acceleration. Because the library has no awareness of whether you are full-stepping or microstepping your motor, or how many full steps represent one revolution of the motor, you may wish to do some simple math to convert to and from more useful units of measurement.
 
----
-### <a name="posmeaning">What the Position Means</a>
-It is helpful to understand what the unit of measurement for a position is. For example, if [*getPos()*](#getpos) returns the number 1600, how far has the motor actually moved?
+If you are full-stepping your motor, the position used by the library corresponds to full steps, the speed corresponds to full steps/s, and the acceleration corresponds to full step/s^2^. If microstepping, they correspond to microsteps, microstep/s, and microsteps/s^2^, respectively.
 
-A position value is always measured by the maximum resolution microstep mode that you set when instantiating kissStepper. So, if you set [*maxMicrostepMode*](#kissMicrostepConfig) to *MICROSTEP_8*, then a position value of 1600 corresponds to 1600 1/8th steps or 200 full steps. This will always be true for a given value of [*maxMicrostepMode*](#kissMicrostepConfig), regardless of the current drive mode. This means that you can freely change the drive mode, even when the motor is moving, and the position index and limits will still represent the same physical motor positions.
+If you do not know how many full steps are in one revolution of your motor, look this information up in your motor’s specifications. This number is useful for converting the library’s position index to real-world measurements. For example, if your motor has 200 full steps per revolution, and you are 1/8th microstepping, moving the motor from position 0 to position 3200 would turn it over two revolutions.
 
-To facilitate distance calculations in your sketch, a constant is available called [*fullStepVal*](#fullStepVal) whose value is determined during instantiation of kissStepper based on your choice of [*maxMicrostepMode*](#kissMicrostepConfig).
+### <a name="direction">When "Forwards" is Not Forwards</a>
 
-#### <a name="fullStepVal">const uint8_t fullStepVal</a>
-This constant tells you the position increment which corresponds to one full step. Its value depends on the maximum drive mode you specified when instantiating kissStepper.
+The concepts of “forwards” and “backwards” used by the library may end up being the opposite of what you expect, or even disagree between two motors in the same project.
 
-Dividing the value of [*getPos()*](#getpos) by *fullStepVal* will give you the number of full steps the motor has moved from its initial (zero) position.
+This depends on how you've wired up your motors and how you've assembled your project. For example, if you are building a robot with two stepper motors controlling opposite wheels, the same target position will drive the wheels in opposite directions.
+
+Currently, you need to compensate for this in your own hardware or software, but I am considering adding a boolean to the kissStepper constructor to reverse the direction logic on a per-instance basis.
+
+### <a name="noAccel">Disabling Acceleration</a>
+
+The main purpose of acceleration is to prevent the motor from stalling at higher speeds, and to ease heavier loads into starting and stopping. If you only run your motor at lower speeds and find that your motor behaves properly without acceleration, you can disable acceleration if you wish.
+
+Setting acceleration to 0 will disable it, but the code which handles acceleration will remain in your program, occupying program and memory space.
+
+To solve this problem, the library includes a version of kissStepper which does not implement acceleration. To use it, simply instantiate the kissStepperNoAccel class instead of the kissStepper class.
+
+### <a name="multipleMotors">Driving Multiple Motors</a>
+
+There are two methods for driving multiple motors. The first is to use a single microcontroller, set up multiple kissStepper instances, and call multiple [*move()*](#move) methods within a main loop. A simple example is included in the examples folder (see the TwoMotor sketch). This is the method I recommend for most applications. A 32-bit microcontroller with hardware floating point support will be able to drive multiple motors with ease. For such applications, I can recommend the Teensy platform, as my tests (on a Teensy 3.1) indicate that performance is superb.
+
+Another option is to use separate microcontrollers for operating each motor driver, all controlled by a single master microcontroller. Using SPI, for example, will allow a master microcontroller to send commands to multiple slave microcontrollers, each which use a single instance of the kissStepper library to operate an attached motor driver. Depending on how you implement the communications protocol between the master and slave microcontrollers, this approach can be higher performance than using a single microcontroller, at the expense of additional hardware and complexity. I have not yet attempted this approach and can’t advise you further, but it may be worth trying.
+
+----
+
+## <a name="ref">Library Reference</a>
+### <a name="refSetup">Instantiation and Initialization</a>
+#### <a name="kissStepper">kissStepper(uint8_t PIN_DIR, uint8_t PIN_STEP, uint8_t PIN_ENABLE)</a>
+
+The kissStepper class is acceleration-enabled. The constructor takes up to three parameters, specifying which of the microcontroller's pins are connected to the motor controller's DIR, STEP, and ENABLE pins. The PIN_ENABLE parameter is optional, but omitting it is not recommended unless you have permanently enabled the motor controller. If you wish to manually enable and disable the motor controller, you can do so using the [*enable()*](#enable) and [*disable()*](#disable) methods.
 
 ##### Example:
 ```C++
-int32_t curPos = myStepper.getPos();
-int32_t fullStepPos = curPos / myStepper.fullStepVal; // calculate the position in full steps
+static const uint8_t PIN_DIR = 3;
+static const uint8_t PIN_STEP = 4;
+static const uint8_t PIN_ENABLE = 7;
+kissStepper motor(PIN_DIR, PIN_STEP, PIN_ENABLE);
 ```
 
----
-### <a name="moveto">bool moveTo(int32_t newTarget)</a>
-An essential method that tells the motor to move to a particular location. You only need to call this once for every position - the work() method will then move the motor until the destination is reached. Note that *newTarget* will be constrained to within [*forwardLimit* and *reverseLimit*](#limits). If you don't want the motor to stop at a predetermined end point, but rather just want to move the motor forwards or backwards until stopped with [*stop()*](#stop) or [*decelerate()*](#decelerate), pass the [*forwardLimit* or *reverseLimit*](#limits) member as the parameter.
+#### <a name="kissStepperNoAccel">kissStepperNoAccel(uint8_t PIN_DIR, uint8_t PIN_STEP, uint8_t PIN_ENABLE)</a>
 
-#### Example:
+The kissStepperNoAccel class is similar to the kissStepper class, but lacks all acceleration/deceleration logic. If you do not need acceleration in your project, using the kissStepperNoAccel class will save program and memory space.
+
+##### Example:
 ```C++
-myStepper.moveTo(3200); // move to position 3200
-myStepper.moveTo(myStepper.forwardLimit); // move forward
-myStepper.moveTo(myStepper.reverseLimit); // move backward
+static const uint8_t PIN_DIR = 3;
+static const uint8_t PIN_STEP = 4;
+static const uint8_t PIN_ENABLE = 7;
+kissStepperNoAccel motor(PIN_DIR, PIN_STEP, PIN_ENABLE);
 ```
 
-#### Parameters:
-* newTarget (**required**): the target position. Values greater than the current position will make the motor move "forward", while values less than the current position will make the motor move "backward". **If you use this method when the motor is already moving, it will be ignored.**
+#### <a name="begin">void begin(void)</a>
 
-#### Returns:
-True if the command was accepted, otherwise false.
+This method initializes an instance of the kissStepper library, and should be called once per instance in the setup routine of your program.
 
----
-### <a name="gettarget">int32_t getTarget(void)</a>
-
-#### Example:
+##### Example:
 ```C++
-long targetPos = myStepper.getTarget();
+void setup(void)
+{
+    ...
+    motor.begin();
+    ...
+}
 ```
 
-#### Returns:
-The current target position.
+### <a name="essential">Essential Methods and Types</a>
+#### <a name="state">The kissState_t enum Type</a>
 
----
-### <a name="stop">void stop(void)</a>
+Two of the library’s methods ([*move()*](#move) and [*getState()*](#getState)) return an enum of type [*kissState_t*](#state) which is very useful for determining if the motor is stopped, moving, accelerating, etc. The value returned by the [*move()*](#move) method is particularly useful for terminating loops once the motor is stopped.
+
+The enum has five possible values, each with a clearly named constant:
+* STATE_STOPPED: the motor is stopped (not moving) and the library has not received any new movement commands
+* STATE_STARTING: the motor is not moving, but the kissStepper library is ready to start moving it
+* STATE_RUN: the motor is moving at constant speed
+* STATE_ACCEL: the motor is accelerating
+* STATE_DECEL: the motor is decelerating
+
+##### Example:
+```C++
+void loop(void)
+{
+    ...
+    motor.prepareMove(3200); // tell the motor to move 3200 units forwards
+    while (motor.move() != STATE_STOPPED); // loop move() until the motor has finished moving
+    ...
+}
+```
+
+#### <a name="getPos">int32_t getPos(void)</a>
+
+Gets the current motor position.
+##### Example:
+```C++
+long curPos = motor.getPos();
+```
+
+#### <a name="move">kissState_t move(void)</a>
+
+This method does most of the heavy lifting. **You must call it repeatedly and often** when intending to move the motor. A good place to do this is inside the loop() routine. You can also use it in while loops, or call it at regular intervals using a timer interrupt.
+
+It returns an enum of type [*kissState_t*](#state) which tells you whether the motor is stopped, starting, accelerating, running (constant speed), or decelerating. When used in while loops, the return value can be compared to the STATE_STOPPED constant to terminate the loop at the appropriate time.
+
+##### Example:
+```C++
+void loop(void)
+{
+    ...
+    motor.prepareMove(1600); // move the motor to position 1600
+    while (motor.move() != STATE_STOPPED); // run the motor until it reaches the target
+    ...
+}
+```
+
+#### <a name="prepareMove">bool prepareMove(int32_t target)</a>
+
+This method tells the library to move the motor to a specific position (the target). Behind the scenes, it calculates the initial interval between STEP pulses, and how long to accelerate and decelerate (if acceleration is non-zero).
+
+The typical usage is to call this method once, then call [*move()*](#move) in a loop until the motor has stopped (reached the destination).
+
+Note that this method won't do anything if the motor is already busy. You must either wait until it has stopped, or use [*stop()*](#stop) to force it to do so.
+
+Returns TRUE if the motor was stopped and the target position differs from the current position. Otherwise, returns FALSE.
+
+##### Example:
+```C++
+void loop(void)
+{
+    ...
+    motor.prepareMove(1600); // move the motor forwards through 1600 STEP pulses
+    ...
+}
+```
+
+#### <a name="stop">void stop(void)</a>
+
 Tells the motor to stop. The motor will stop very suddenly, even if you are using acceleration. At high speeds or with heavy loads, the lack of deceleration may cause momentum to carry the motor forward, throwing off your motor's indexing. See [*decelerate()*](#decelerate) for an alternative.
 
-#### Example:
+##### Example:
 ```C++
-myStepper.stop();
+motor.stop();
 ```
 
----
-### <a name="getpos">int32_t getPos(void)</a>
-Gets the current motor position.
+### <a name="speed">Working with Speed</a>
 
-#### Example:
+#### <a name="getCurSpeed">float getCurSpeed(void)</a>
+
+Returns the current speed. Due to acceleration and deceleration, the current speed is often different from the maximum speed. If the motor is not moving, the current speed will be 0.
+
+##### Example:
 ```C++
-long curPos = myStepper.getPos();
+float curSpeed = motor.getCurSpeed();
 ```
 
-#### Returns:
-The current position of the motor.
+#### <a name="getMaxSpeed">uint16_t getMaxSpeed(void)</a>
 
----
-### <a name="setpos">void setPos(int32_t newPos)</a>
-This changes the current motor position value. It will not cause the motor to move, and can only be called when the motor is stopped. The purpose of this method is to allow you to do things such as calibration of a motorized device, or resetting the position index when desired. The *newPos* parameter will be constrained between [*forwardLimit* and *reverseLimit*](#limits).
+Returns the current maximum speed.
 
-#### Example:
+##### Example:
 ```C++
-myStepper.setPos(0); // zero the current location
+unsigned int maxSpeed = motor.getMaxSpeed();
 ```
 
-#### Parameters:
-* newPos (**required**): the new value that will be assigned to the current position.
+#### <a name="setMaxSpeed">void setMaxSpeed(uint16_t maxSpeed)</a>
 
----
-### <a name="limits">int32\_t forwardLimit and int32\_t reverseLimit</a>
-These variables hold the maximum forward and reverse position indexes beyond which the motor will not be allowed to move. You can get or change their value however you wish. This allows you to calibrate motorized equipment so that it will not move beyond a given range of positions. Note that if changed while the motor is moving, the motor must be stopped and [*moveTo()*](#moveto) issued again before the changes will take effect.
+Changes the maximum speed (the default is 1600). If using acceleration, the maximum speed will only be reached if the motor is moved over a distance large enough to permit full acceleration to and deceleration from the maximum speed. If not using acceleration, the motor will immediately start at the maximum speed.
 
-#### Example:
+This can only be done when the motor is stopped.
+
+##### Example:
 ```C++
-// and zero the current position
-mot.setPos(0);
-// don't let the motor move more than 200 full steps in either direction
-uint16_t distLimit = myStepper.fullStepVal * 200
-mot.forwardLimit = distLimit;
-mot.reverseLimit = -distLimit;
+motor.setMaxSpeed(800); // move at a maximum of 800 full steps or microsteps per sec
 ```
 
----
-### <a name="getMoveState">int8_t getMoveState(void)</a>
-#### Example:
+### <a name="accel">Working with Acceleration</a>
+
+**Note:** the following methods are unavailable in the kissStepperNoAccel class.
+
+#### <a name="calcDecelDist">uint32_t calcDecelDist(void)</a>
+
+This method returns the distance required to decelerate the motor from its current speed to 0, at the current acceleration value.
+
+##### Example:
 ```C++
-int8_t moveState = myStepper.getMoveState();
+unsigned long decelDist = motor.calcDecelDist();
 ```
 
-#### Returns:
-* 1 if the motor is moving forwards
-* 0 if the motor is not moving
-* -1 if the motor is moving backwards
+#### <a name="calcMaxAccelDist">uint32_t calcMaxAccelDist(void)</a>
 
-## <a name="speed">Motor Speed</a>
-The speed of the motor is expressed in steps/sec. Note that accurate speed requires that the drive mode settings are configured correctly.
+This method returns the distance required to accelerate the motor from a speed of 0 to the maximum speed, at the current acceleration value. Because acceleration and deceleration rates are the same, the value returned by this method can also be interpreted as the distance required to decelerate the motor from maximum speed to 0.
 
----
-### <a name="setMaxSpeed">void setMaxSpeed(uint16_t stepsPerSec)</a>
-Allows changing of the maximum speed after [*begin()*](#begin) is called. This can be done at any time, even while the motor is in motion. If not using acceleration, a moving motor will suddenly change to the new speed. If using acceleration, a moving motor will accelerate or decelerate to the new speed.
-
-#### Example:
+##### Example:
 ```C++
-myStepper.setMaxSpeed(200);
+unsigned long maxAccelDist = motor.calcMaxAccelDist();
 ```
 
-#### Parameters:
-* stepsPerSec (**required**): the new maximum speed
+#### <a name="decelerate">void decelerate(void)</a>
 
----
-### <a name="getMaxSpeed">uint16_t getMaxSpeed(void)</a>
-Returns the current maximum speed (steps/sec).
+Immediately decelerates the motor down to a speed of 0 using the current acceleration value. If the acceleration value is 0, this method is equivalent to [*stop()*](#stop).
 
-#### Example:
+Using this method will generally mean that your motor stops short of the target set in [*prepareMove()*](#prepareMove). If that is not your intention, do not use the [*decelerate()*](#decelerate) method, and simply wait for the motor to decelerate on its own as it approaches the target.
+
+##### Example:
 ```C++
-unsigned int maxSpeed = myStepper.getMaxSpeed();
-```
-#### Returns:
-The set maximum speed in full steps/sec.
-
----
-### <a name="getCurSpeed">uint16_t getCurSpeed(void)</a>
-Returns the current speed (steps/sec). Due to acceleration and deceleration, the current speed is often different from the maximum speed. If the motor is not moving, the current speed will be 0.
-
-#### Example:
-```C++
-unsigned int curSpeed = myStepper.getCurSpeed();
-```
-#### Returns:
-The current speed in steps/sec.
-
-## <a name="drivemodes">Drive Modes</a>
-Your motor is capable of moving with greater precision than full steps by a technique called "microstepping". Most stepper motor controllers support some degree of microstepping. More precise microstepping modes reduce vibrations and allow for finer positioning. The different modes, including full stepping, half stepping, and microstepping, and referred to in this library as "drive modes".
-
----
-### <a name="drivemode">enum drivemode_t</a>
-This enum contains several named constants which represent various motor drive modes. It is used both as a parameter and as a return value for a number of methods that set/get the drive mode or which configure the maximum allowed drive mode.
-
-The possible values are:
-
-* FULL_STEP for full stepping
-* HALF_STEP for half stepping
-* MICROSTEP_4 for 1/4 stepping
-* MICROSTEP_8 for 1/8 stepping
-* MICROSTEP_16 for 1/16 stepping
-* MICROSTEP_32 for 1/32 stepping
-* MICROSTEP_64 for 1/64 stepping
-* MICROSTEP_128 for 1/128 stepping
-
-When working with enums, it is common practice to use them with a switch statement. However, each of these constants also has a numeric uint8_t (byte) value that can be used in calculations. For example, if you wish to write out the current drive mode to Serial or to a display, you can do something like this:
-
-```C++
-Serial.print("Current drive mode is: 1/");
-Serial.print(String(1 << mot.getDriveMode()));
-Serial.println(" step");
+motor.decelerate();
 ```
 
-The numeric value of *FULL_STEP* is 0, and the value of each subsequent drive mode is incremented by 1.
+#### <a name="getAccel">uint16_t getAccel(void)</a>
 
----
-### <a name="setDriveMode">void setDriveMode(driveMode_t mode)</a>
-Allows changing of the drive mode after [*begin()*](#begin) is called. If you specify a microstepping mode beyond the maximum set in [*kissMicrostepConfig*](#kissMicrostepConfig), the maximum will be used instead. The drive mode can be changed at any time, even while the motor is in motion.
+Returns the acceleration rate.
 
-#### Example:
+##### Example:
 ```C++
-myStepper.setDriveMode(MICROSTEP_8);
+unsigned int accel = motor.getAccel();
 ```
 
-#### Parameters:
-* mode (**required**): a named constant from [driveMode_t](#drivemode)
+#### <a name="getAccelDist">uint32_t getAccelDist(void)</a>
 
----
-### <a name="getDriveMode">driveMode_T getDriveMode(void)</a>
-Returns a named constant corresponding to the current drive mode.
+Returns the acceleration distance for the current movement, as calculated by [*prepareMove()*](#prepareMove).
 
-#### Example:
+##### Example:
 ```C++
-kissStepper::driveMode_T driveMode = myStepper.getDriveMode();
+unsigned long accelDist = motor.getAccelDist();
 ```
 
-#### Returns:
-a [driveMode_t](#drivemode) named constant
+#### <a name="getDecelDist">uint32_t getDecelDist(void)</a>
 
-## <a name="accel">Acceleration</a>
-When not using acceleration, your motor starts and stops very suddenly. In many cases, such as when driving light loads and moving at low speeds, this is not a problem. However, if you find that your motor is skipping steps or stalling, it may be because it is struggling to start and stop heavy loads or to change speeds more quickly than it is able. Using acceleration can prevent these issues.
+Returns the deceleration distance for the current movement, as calculated by [*prepareMove()*](#prepareMove).
 
----
-### <a name="setAccel">void setAccel(uint16_t stepsPerSecPerSec)</a>
-Allows changing the rate of acceleration/deceleration after [*begin()*](#begin) is called.
-
-#### Example:
+##### Example:
 ```C++
-myStepper.setAccel(200); // accelerate at 200 steps/sec/sec
+unsigned long decelDist = motor.getDecelDist();
 ```
 
-#### Parameters:
-* accelStepsPerSecPerSec (**required**): the new rate of acceleration, in steps/sec<sup>2</sup>
+#### <a name="getRunDist">uint32_t getRunDist(void)</a>
 
----
-### <a name="getAccel">uint16_t getAccel(void)</a>
-Returns the acceleration rate in steps/sec<sup>2</sup>
+Returns the run (constant speed) distance for the current movement, as calculated by [*prepareMove()*](#prepareMove).
 
-#### Example:
+##### Example:
 ```C++
-unsigned int accel = myStepper.getAccel();
+unsigned long runDist = motor.getRunDist();
 ```
 
-#### Returns:
-The acceleration rate in steps/sec<sup>2</sup>
+#### <a name="setAccel">void setAccel(uint16_t accel)</a>
 
----
-### <a name="decelerate">void decelerate(void)</a>
-Gradually decelerates the motor down to 0 steps/sec<sup>2</sup> if you have set a non-zero acceleration rate in [*begin()*](#begin) or [*setAccel()*](#setAccel). Otherwise, it will behave very much like stop().
+Sets a new acceleration rate (the default is 1600). This can only be done when the motor is stopped.
 
-#### Example:
+If set to 0, acceleration/deceleration will be disabled. If your program permanently sets acceleration to 0, consider using the kissStepperNoAccel class.
+
+##### Example:
 ```C++
-myStepper.decelerate();
+motor.setAccel(800); // accelerate at 800 full steps or microsteps per sec^2
 ```
 
----
-### <a name="getAccelState">int8_t getAccelState(void)</a>
-Returns a value that indicates whether the motor is accelerating, decelerating, or has a constant speed.
+### <a name="status">Determining Library/Motor Status</a>
 
-#### Example:
+#### <a name="getDistRemaining">uint32_t getDistRemaining(void)</a>
+
+Returns the absolute difference between the current position and the target position specified in [*prepareMove()*](#prepareMove).
+
+##### Example:
 ```C++
-int8_t accelState = myStepper.getAccelState();
+unsigned long distRemaining = motor.getDistRemaining();
 ```
 
-#### Returns:
-* 1 if the motor is accelerating
-* 0 if the motor has a constant speed
-* -1 if the motor is decelerating 
+#### <a name="getState">kissState_t getState(void)</a>
 
-## <a name="enabledisable">Enabling and Disabling the Controller</a>
-If you have supplied kissStepper with an ENABLE pin in [*kissPinAssignments*](#kissPinAssignments), these methods can be used to enable or disable the stepper motor controller.
+Returns an enum of type [*kissState_t*](#state) which specifies the current state of the library/motor. Possible values and meaning are:
 
----
-### <a name="enable">void enable(void)</a>
-Enables the motor controller. Seldom needed, since kissStepper automatically enables the controller as needed.
+* STATE_STOPPED: the motor is stopped (not moving) and the library has not received any new movement commands
+* STATE_STARTING: the motor is not moving, but the kissStepper library is ready to start moving it
+* STATE_RUN: the motor is moving at constant speed
+* STATE_ACCEL: the motor is accelerating
+* STATE_DECEL: the motor is decelerating
 
-#### Example:
+##### Example:
 ```C++
-myStepper.enable();
+kissState_t curState = motor.getState();
+if (curState == STATE_STOPPED)
+{
+    // motor is stopped, so do something here...
+}
 ```
 
----
-### <a name="disable">void disable(void)</a>
-Disables the motor controller. Can be useful for saving power or minimizing heat when the motor is not actively being used. The motor controller will automatically turn itself on again if asked to move. When the motor controller is disabled, the motor may re-seat itself (move out of place) slightly, especially if using microstepping with a low friction load.
+#### <a name="getTarget">int32_t getTarget(void)</a>
 
-#### Example:
+Returns the target position last supplied to [*prepareMove()*](#prepareMove).
+
+##### Example:
 ```C++
-myStepper.disable();
+long targetPos = motor.getTarget();
 ```
 
----
-### <a name="isEnabled">bool isEnabled(void)</a>
-#### Example:
+#### <a name="isEnabled">bool isEnabled(void)</a>
+
+Returns TRUE if the motor controller is enabled, otherwise FALSE. Only meaningful if a PIN_ENABLE parameter was supplied to the kissStepper constructor.
+
+##### Example:
 ```C++
-bool enabled = myStepper.isEnabled();
+bool enabled = motor.isEnabled();
 ```
 
-#### Returns:
-True if the motor controller is enabled, otherwise false.
+#### <a name="isMovingForwards">bool isMovingForwards(void)</a>
+
+Returns TRUE if the current or previous movement was "forwards" (positive change in position index). Otherwise returns FALSE.
+
+##### Example:
+```C++
+bool forwards = motor.isMovingForwards();
+```
+
+### <a name="limits">Setting/Getting Position Limits</a>
+
+The forward and reverse limits are 32-bit integers which specify the maximum forward and reverse position indexes beyond which the motor will not be allowed to move. You can get or set their value using the methods described below.
+
+Position limits are useful for preventing a motor from moving beyond a range of physical points. They can be used in combination with limit switches to create a calibration routine for your device. All position index parameters specified in calls to [*prepareMove()*](#prepareMove) or [*setPos()*](#setPos) are constrained between the forward and reverse limits.
+
+Changes made using either of the setter methods will not retroactively constrain motor movements already underway. If the motor's current position ends up outside of a newly specified set of limits, moving the motor will still be permitted as long as the target position is within the limits. The [*setPos()*](#setPos) method may be useful for adjusting the motor's current position index to an acceptable value without moving the motor.
+
+#### <a name="getForwardLimit">int32_t getForwardLimit(void)</a>
+
+Returns the current forward limit.
+
+##### Example:
+```C++
+long forwardLimit = motor.getForwardLimit();
+```
+
+#### <a name="getReverseLimit">int32_t getReverseLimit(void)</a>
+
+Returns the current reverse limit.
+
+##### Example:
+```C++
+long reverseLimit = motor.getReverseLimit();
+```
+
+#### <a name="setForwardLimit">void setForwardLimit(int32_t forwardLimit)</a>
+
+Sets a new forward limit, which will be enforced for all subsequent calls to [*prepareMove()*](#prepareMove) or [*setPos()*](#setPos).
+
+##### Example:
+```C++
+if (forwardLimitSwitchClosed)
+{
+    motor.stop();
+    motor.setForwardLimit(motor.getPos());
+}
+```
+
+#### <a name="setReverseLimit">void setReverseLimit(int32_t reverseLimit)</a>
+
+Sets a new reverse limit, which will be enforced for all subsequent calls to [*prepareMove()*](#prepareMove) or [*setPos()*](#setPos).
+
+##### Example:
+```C++
+if (reverseLimitSwitchClosed)
+{
+    motor.stop();
+    motor.setReverseLimit(motor.getPos());
+}
+```
+
+### <a name="other">Other Methods</a>
+#### <a name="disable">void disable(void)</a>
+
+Stops the motor and disables the motor controller.
+
+##### Example:
+```C++
+motor.disable();
+```
+
+#### <a name="enable">void enable(void)</a>
+
+Enables the motor controller. If it is already enabled, nothing untoward happens.
+
+##### Example:
+```C++
+motor.enable();
+```
+
+#### <a name="setPos">void setPos(int32_t pos)</a>
+
+Changes the current position index without moving the motor. The new position index will be constrated between the forward and reverse position limits. This method may be useful for calibration routines.
+
+##### Example:
+```C++
+int32_t midpoint = (forwardLimitSwitchIndex + reverseLimitSwitchIndex) / 2;
+
+// send motor to midpoint between limit switches
+motor.prepareMove(midpoint);
+while (motor.move() != STATE_STOPPED);
+
+// zero current position and apply new limits
+motor.setPos(0);
+motor.setForwardLimit(forwardLimitSwitchIndex - midpoint);
+motor.setReverseLimit(reverseLimitSwitchIndex - midpoint);
+```
