@@ -194,7 +194,7 @@ Two of the library’s methods ([*move()*](#move) and [*getState()*](#getState))
 
 The enum has five possible values, each with a clearly named constant:
 * STATE_STOPPED: the motor is stopped (not moving) and the library has not received any new movement commands
-* STATE_STARTING: the motor is not moving, but the kissStepper library is ready to start moving it
+* STATE_STARTING: the motor is not yet moving, but the kissStepper library has received a new movement command
 * STATE_RUN: the motor is moving at constant speed
 * STATE_ACCEL: the motor is accelerating
 * STATE_DECEL: the motor is decelerating
@@ -204,7 +204,7 @@ The enum has five possible values, each with a clearly named constant:
 void loop(void)
 {
     ...
-    motor.prepareMove(3200); // tell the motor to move 3200 units forwards
+    motor.prepareMove(3200); // tell the motor to move to position 3200
     while (motor.move() != STATE_STOPPED); // loop move() until the motor has finished moving
     ...
 }
@@ -250,7 +250,7 @@ Returns TRUE if the motor was stopped and the target position differs from the c
 void loop(void)
 {
     ...
-    motor.prepareMove(1600); // move the motor forwards through 1600 STEP pulses
+    motor.prepareMove(1600); // move the motor to position 1600
     ...
 }
 ```
@@ -388,13 +388,7 @@ unsigned long distRemaining = motor.getDistRemaining();
 
 #### <a name="getState">kissState_t getState(void)</a>
 
-Returns an enum of type [*kissState_t*](#state) which specifies the current state of the library/motor. Possible values and meaning are:
-
-* STATE_STOPPED: the motor is stopped (not moving) and the library has not received any new movement commands
-* STATE_STARTING: the motor is not moving, but the kissStepper library is ready to start moving it
-* STATE_RUN: the motor is moving at constant speed
-* STATE_ACCEL: the motor is accelerating
-* STATE_DECEL: the motor is decelerating
+Returns an enum of type [*kissState_t*](#state) which specifies the current state of the library/motor.
 
 ##### Example:
 ```C++
