@@ -119,7 +119,7 @@ The library does not handle your motor driver board’s microstep select pins an
 
 When working with the library, you will be using numbers to represent motor position, speed, and acceleration. Because the library has no awareness of whether you are full-stepping or microstepping your motor, or how many full steps represent one revolution of the motor, you may wish to do some simple math to convert to and from more useful units of measurement.
 
-If you are full-stepping your motor, the position used by the library corresponds to full steps, the speed corresponds to full steps/s, and the acceleration corresponds to full step/s^2^. If microstepping, they correspond to microsteps, microstep/s, and microsteps/s^2^, respectively.
+If you are full-stepping your motor, the position used by the library corresponds to full steps, the speed corresponds to full steps/s, and the acceleration corresponds to full step/s<sup>2</sup>. If microstepping, they correspond to microsteps, microstep/s, and microsteps/s<sup>2</sup>, respectively.
 
 If you do not know how many full steps are in one revolution of your motor, look this information up in your motor’s specifications. This number is useful for converting the library’s position index to real-world measurements. For example, if your motor has 200 full steps per revolution, and you are 1/8th microstepping, moving the motor from position 0 to position 3200 would turn it over two revolutions.
 
