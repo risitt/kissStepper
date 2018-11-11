@@ -151,6 +151,7 @@ protected:
     static const int32_t DEFAULT_FORWARD_LIMIT = 2147483647L;
     static const int32_t DEFAULT_REVERSE_LIMIT = -2147483648L;
     static const uint16_t DEFAULT_SPEED = 1600;
+    static const uint16_t INTERVAL_CORRECTION_INCREMENT = 4033;
 
     int32_t m_forwardLimit;
     int32_t m_reverseLimit;
@@ -168,6 +169,8 @@ protected:
     const uint8_t m_stepBit;
     uint8_t volatile * const m_stepOut;
     uint32_t m_stepIntervalWhole;
+    uint16_t m_stepIntervalRemainder;
+    uint16_t m_stepIntervalCorrectionCounter;
     bool m_enabled;
     uint32_t m_lastStepTime;
 };

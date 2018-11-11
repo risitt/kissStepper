@@ -113,6 +113,7 @@ bool kissStepperNoAccel::prepareMove(int32_t target)
 
             // set initial state
             m_kissState = STATE_STARTING;
+            m_stepIntervalCorrectionCounter = 0;
 
             // calculate speed profile
             m_distTotal = (target > m_pos) ? (target - m_pos) : (m_pos - target);
@@ -120,7 +121,7 @@ bool kissStepperNoAccel::prepareMove(int32_t target)
             // start motor at full speed
             // don't need to set float version of stepInterval since it isn't used during run
             m_stepIntervalWhole = ONE_SECOND / m_maxSpeed;
-            if ((ONE_SECOND % m_maxSpeed) >= (m_maxSpeed / 2)) m_stepIntervalWhole++; // round for slightly better accuracy
+            m_stepIntervalRemainder = ONE_SECOND % m_maxSpeed;
 
             return true;
         }
@@ -145,6 +146,10 @@ kissState_t kissStepperNoAccel::move(void)
 
             // increment lastStepTime
             m_lastStepTime += m_stepIntervalWhole;
+            
+            // correct lastStepTime
+            if (m_stepIntervalCorrectionCounter < m_stepIntervalRemainder) m_lastStepTime++;
+            m_stepIntervalCorrectionCounter += INTERVAL_CORRECTION_INCREMENT;
 
             /*
                 Do the step pulse.
@@ -236,54 +241,58 @@ bool kissStepper::prepareMove(int32_t target)
 
             // set initial state
             m_kissState = STATE_STARTING;
+            
+            // calculations for the step interval at max speed
+            uint32_t maxSpeedStepInterval = ONE_SECOND / m_maxSpeed;
+            m_stepIntervalRemainder = ONE_SECOND % m_maxSpeed;
+            m_stepIntervalCorrectionCounter = 0;
 
-            // calculate speed profile
-            uint32_t distRemaining = (target > m_pos) ? (target - m_pos) : (m_pos - target);
-            m_distAccel = m_distRun = 0;
-            m_distTotal = distRemaining;
+            // calculate total distance
+            m_distTotal = (target > m_pos) ? (target - m_pos) : (m_pos - target);
 
+            // split the total distance across accel, run, and decel
             if (m_accel != 0)
             {
 
                 // calculate distance for accel/decel
-                // distAccel is the distance of accel/decel between 0 st/s and maxSpeed
-                m_distAccel = calcMaxAccelDist();
+                // this is the distance of accel/decel between 0 st/s and maxSpeed
+                uint32_t maxAccelDist = calcMaxAccelDist();
 
-                // if distAccel >= half the distance remaining, use a triangular speed profile
-                // otherwise use a trapezoidal profile
-                if (m_distAccel >= (distRemaining / 2))
+                // if maxAccelDist >= half the total distance, use a triangular speed profile (accelerate then decelerate)
+                // otherwise use a trapezoidal profile (accelerate, then run, then decelerate)
+                if (maxAccelDist >= (m_distTotal / 2))
                 {
-                    m_distAccel = distRemaining / 2;
+                    m_distAccel = m_distTotal / 2;
                     m_distRun = m_distAccel;
                 }
                 else
                 {
-                    m_distRun = distRemaining - m_distAccel;
+                    m_distAccel = maxAccelDist;
+                    m_distRun = m_distTotal - m_distAccel;
                 }
 
                 // calculate constant multiplier
                 m_constMult = ((float)m_accel / ONE_SECOND) / ONE_SECOND;
 
                 // calculate step interval at min speed (initial step delay)
-                // minSpeedStepInterval = ONE_SECOND / sqrt(V0^2 + 2a)
+                // min speed stepInterval = ONE_SECOND / sqrt(V0^2 + 2a)
                 // because initial velocity is 0:
-                // minSpeedStepInterval = ONE_SECOND / sqrt(2a)
-                uint32_t minSpeedStepInterval = m_stepInterval = ONE_SECOND / sqrt(2.0 * m_accel);
-                m_stepIntervalWhole = minSpeedStepInterval;
-                if ((m_stepIntervalWhole - minSpeedStepInterval) > 0.5) m_stepIntervalWhole++;
+                // min speed stepInterval = ONE_SECOND / sqrt(2a)
+                m_stepIntervalWhole = m_stepInterval = ONE_SECOND / sqrt(2.0 * m_accel);
 
                 // calculate step interval at max speed
-                m_maxSpeedStepInterval = ONE_SECOND / m_maxSpeed;
+                m_maxSpeedStepInterval = maxSpeedStepInterval;
+
             }
             else
             {
                 // no acceleration or deceleration
-                m_distRun = distRemaining;
+                m_distAccel = 0;
+                m_distRun = m_distTotal;
 
                 // if not accelerating, start motor at full speed
                 // don't need to set float version of stepInterval since it isn't used during run
-                m_stepIntervalWhole = ONE_SECOND / m_maxSpeed;
-                if ((ONE_SECOND % m_maxSpeed) >= (m_maxSpeed / 2)) m_stepIntervalWhole++; // round for slightly better accuracy
+                m_stepIntervalWhole = maxSpeedStepInterval;
             }
 
             return true;
@@ -337,6 +346,11 @@ kissState_t kissStepper::move(void)
             // progress through speed profile
             if (m_kissState == STATE_RUN)
             {
+                
+                // correct lastStepTime
+                if (m_stepIntervalCorrectionCounter < m_stepIntervalRemainder) m_lastStepTime++;
+                m_stepIntervalCorrectionCounter += INTERVAL_CORRECTION_INCREMENT;
+                
                 if (m_distMoved == m_distRun)
                 {
                     if (m_distTotal == m_distRun)
