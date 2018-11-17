@@ -17,7 +17,7 @@ Acceleration approximation math is based on Aryeh Eiderman's "Real Time Stepper 
 
 /*
 Optimization notes:
-- Keeping an integer copy of stepInterval improves performance at a cost of some memory
+- Keeping an integer copy of stepInterval for timing comparisons improves performance at a cost of some memory
 - Making stepInterval an integer instead of float greatly decreases accuracy of accel/decel and doesn't make a noticeable difference in performance
 */
 
@@ -41,10 +41,18 @@ kissStepperNoAccel::kissStepperNoAccel(uint8_t PIN_DIR, uint8_t PIN_STEP, uint8_
     PIN_DIR(PIN_DIR),
     PIN_STEP(PIN_STEP),
     PIN_ENABLE(PIN_ENABLE),
+    m_kissState(STATE_STOPPED),
+    m_distTotal(0),
     m_distMoved(0),
+    m_forwards(false),
     m_pos(0),
     m_stepBit(digitalPinToBitMask(PIN_STEP)),
-    m_stepOut(portOutputRegister(digitalPinToPort(PIN_STEP)))
+    m_stepOut(portOutputRegister(digitalPinToPort(PIN_STEP))),
+    m_stepIntervalWhole(0),
+    m_stepIntervalRemainder(0),
+    m_stepIntervalCorrectionCounter(0),
+    m_enabled(false),
+    m_lastStepTime(0)
 {}
 
 // ----------------------------------------------------------------------------------------------------
@@ -61,7 +69,7 @@ void kissStepperNoAccel::begin(void)
 
     // initial STEP pin state
     digitalWrite(PIN_STEP, LOW);
-
+    
     // set to move forwards (DIR pin low)
     setDir(true);
 
@@ -209,6 +217,11 @@ void kissStepperNoAccel::stop(void)
 
 kissStepper::kissStepper(uint8_t PIN_DIR, uint8_t PIN_STEP, uint8_t PIN_ENABLE) :
     kissStepperNoAccel(PIN_DIR, PIN_STEP, PIN_ENABLE),
+    m_distAccel(0),
+    m_distRun(0),
+    m_maxSpeedStepInterval(0),
+    m_stepInterval(0),
+    m_constMult(0),
     m_accel(DEFAULT_ACCEL)
 {}
 
