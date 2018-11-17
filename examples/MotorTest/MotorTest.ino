@@ -268,7 +268,7 @@ void accelTest(void)
 {
     // basic acceleration tests
     resetMotor();
-    float peakSpeed;
+    uint16_t peakSpeed;
     int32_t posB, posC;
     uint32_t accelCount, constCount, decelCount;
     uint32_t accelTime, constTime, decelTime;
