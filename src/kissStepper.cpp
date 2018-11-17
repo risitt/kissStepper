@@ -291,6 +291,7 @@ bool kissStepper::prepareMove(int32_t target)
                 // min speed stepInterval = ONE_SECOND / sqrt(V0^2 + 2a)
                 // because initial velocity is 0:
                 // min speed stepInterval = ONE_SECOND / sqrt(2a)
+                // range of this calculation is 2762 to 707106
                 m_stepIntervalWhole = m_stepInterval = ONE_SECOND / sqrt(2.0 * m_accel);
 
                 // calculate step interval at max speed
@@ -431,7 +432,9 @@ void kissStepper::decelerate(void)
         if (m_accel > 0)
         {
             uint32_t distRemaining = getDistRemaining();
-            uint32_t maxDecelDist = calcDecelDist();
+            uint32_t curSpeed = ONE_SECOND / m_stepIntervalWhole;
+            uint32_t avgSpeed = curSpeed / 2;
+            uint32_t maxDecelDist = (avgSpeed * curSpeed) / m_accel;
             uint32_t decelDist = (maxDecelDist > distRemaining) ? distRemaining : maxDecelDist;
             m_distAccel = 0;
             m_distRun = 0;

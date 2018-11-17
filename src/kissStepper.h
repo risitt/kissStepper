@@ -50,12 +50,12 @@ public:
     kissState_t move(void);
     void stop(void);
 
-    float getCurSpeed(void)
+    uint16_t getCurSpeed(void)
     {
-        if (m_kissState == STATE_STOPPED)
-            return 0;
+        if (m_kissState == STATE_RUN)
+            return m_maxSpeed;
         else
-            return ONE_SECOND / (float)m_stepIntervalWhole;
+            return 0;
     }
     kissState_t getState(void)
     {
@@ -191,18 +191,26 @@ public:
     bool prepareMove(int32_t target);
     kissState_t move(void);
     void stop(void);
+    
+    uint16_t getCurSpeed(void)
+    {
+        if (m_kissState == STATE_RUN)
+            return m_maxSpeed;
+        else if (m_kissState > STATE_STARTING)
+        {
+            uint32_t curSpeed = ONE_SECOND / m_stepIntervalWhole;
+            if (curSpeed > m_maxSpeed) curSpeed = m_maxSpeed;
+            return curSpeed;
+        }
+        else
+            return 0;
+    }
+    
     void decelerate(void);
     uint32_t calcMaxAccelDist(void)
     {
         if (m_accel > 0)
-            return ((float)m_maxSpeed / 2.0) * ((float)m_maxSpeed / m_accel);
-        else
-            return 0;
-    }
-    uint32_t calcDecelDist(void)
-    {
-        if (m_accel > 0)
-            return (getCurSpeed() / 2.0) * (getCurSpeed() / m_accel);
+            return ((uint32_t)m_maxSpeed * m_maxSpeed) / (2UL * m_accel);
         else
             return 0;
     }
