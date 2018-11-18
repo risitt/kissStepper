@@ -653,10 +653,28 @@ void loop(void)
 void setup(void)
 {
 
-    Serial.begin(9600);
-
     // initialize the kissStepper
-    // use 1/8th drive mode, and set the maximum speed to 200 st/s
     mot.begin();
-
+    
+    // set drive mode pins
+    // the kissStepper library does not do this for you!
+    pinMode(PIN_MS1, OUTPUT);
+    pinMode(PIN_MS2, OUTPUT);
+    digitalWrite(PIN_MS1, LOW);
+    digitalWrite(PIN_MS2, LOW);
+    switch (DRIVE_MODE)
+    {
+    case 2: // half-step
+        digitalWrite(PIN_MS1, HIGH);
+        break;
+    case 4: // quarter-step
+        digitalWrite(PIN_MS2, HIGH);
+        break;
+    case 8: // eighth-step
+        digitalWrite(PIN_MS1, HIGH);
+        digitalWrite(PIN_MS2, HIGH);
+        break;
+    }
+    
+    Serial.begin(9600);
 }
