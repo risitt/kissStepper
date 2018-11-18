@@ -36,7 +36,6 @@ The simplest way to use kissStepper is as follows:
         * [getMaxSpeed](#uint16_t-getmaxspeedvoid)
         * [setMaxSpeed](#void-setmaxspeeduint16_t-maxspeed)
     * [Working with Acceleration](#working-with-acceleration)
-        * [calcDecelDist](#uint32_t-calcdeceldistvoid)
         * [calcMaxAccelDist](#uint32_t-calcmaxacceldistvoid)
         * [decelerate](#void-deceleratevoid)
         * [getAccel](#uint16_t-getaccelvoid)
@@ -298,15 +297,6 @@ motor.setMaxSpeed(800); // move at a maximum of 800 full steps or microsteps per
 ### Working with Acceleration
 
 **Note:** the following methods are unavailable in the kissStepperNoAccel class.
-
-#### uint32_t calcDecelDist(void)
-
-This method returns the distance required to decelerate the motor from its current speed to 0, at the current acceleration value.
-
-##### Example:
-```C++
-unsigned long decelDist = motor.calcDecelDist();
-```
 
 #### uint32_t calcMaxAccelDist(void)
 
