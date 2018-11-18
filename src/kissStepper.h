@@ -173,6 +173,7 @@ protected:
     uint16_t m_stepIntervalCorrectionCounter;
     bool m_enabled;
     uint32_t m_lastStepTime;
+    bool m_init;
 };
 
 // ----------------------------------------------------------------------------------------------------

@@ -52,7 +52,8 @@ kissStepperNoAccel::kissStepperNoAccel(uint8_t PIN_DIR, uint8_t PIN_STEP, uint8_
     m_stepIntervalRemainder(0),
     m_stepIntervalCorrectionCounter(0),
     m_enabled(false),
-    m_lastStepTime(0)
+    m_lastStepTime(0),
+    m_init(false)
 {}
 
 // ----------------------------------------------------------------------------------------------------
@@ -75,6 +76,8 @@ void kissStepperNoAccel::begin(void)
 
     // start with motor controller disabled
     disable();
+    
+    m_init = true;
 
 }
 
@@ -103,6 +106,9 @@ void kissStepperNoAccel::disable(void)
 
 bool kissStepperNoAccel::prepareMove(int32_t target)
 {
+    
+    if (!m_init) begin();
+    
     // only continue if not already moving
     if (m_kissState == STATE_STOPPED)
     {
@@ -236,6 +242,9 @@ The values are the cumulative number of step pin pulses produced before it's tim
 
 bool kissStepper::prepareMove(int32_t target)
 {
+    
+    if (!m_init) begin();
+    
     // only continue if not already moving
     if (m_kissState == STATE_STOPPED)
     {
