@@ -32,7 +32,7 @@ The simplest way to use kissStepper is as follows:
         * [prepareMove](#bool-preparemoveint32_t-target)
         * [stop](#void-stopvoid)
     * [Working with Speed](#working-with-speed)
-        * [getCurSpeed](#float-getcurspeedvoid)
+        * [getCurSpeed](#uint16_t-getcurspeedvoid)
         * [getMaxSpeed](#uint16_t-getmaxspeedvoid)
         * [setMaxSpeed](#void-setmaxspeeduint16_t-maxspeed)
     * [Working with Acceleration](#working-with-acceleration)
@@ -265,13 +265,13 @@ motor.stop();
 
 ### Working with Speed
 
-#### float getCurSpeed(void)
+#### uint16_t getCurSpeed(void)
 
 Returns the current speed. Due to acceleration and deceleration, the current speed is often different from the maximum speed. If the motor is not moving, the current speed will be 0.
 
 ##### Example:
 ```C++
-float curSpeed = motor.getCurSpeed();
+unsigned int curSpeed = motor.getCurSpeed();
 ```
 
 #### uint16_t getMaxSpeed(void)
