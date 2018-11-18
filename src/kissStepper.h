@@ -116,7 +116,7 @@ public:
     }
     void setMaxSpeed(uint16_t maxSpeed)
     {
-        m_maxSpeed = maxSpeed;
+        if (m_kissState == STATE_STOPPED) m_maxSpeed = maxSpeed;
     }
     uint16_t getMaxSpeed(void)
     {
@@ -229,7 +229,7 @@ public:
     }
     void setAccel(uint16_t accel)
     {
-        m_accel = accel;
+        if (m_kissState == STATE_STOPPED) m_accel = accel;
     }
     uint16_t getAccel(void)
     {
