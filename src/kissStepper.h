@@ -235,6 +235,7 @@ public:
     {
         return m_accel;
     }
+    uint16_t getTopSpeed(void);
 
 protected:
 

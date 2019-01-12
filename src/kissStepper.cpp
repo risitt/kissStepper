@@ -460,3 +460,14 @@ void kissStepper::stop(void)
     m_distAccel = m_distRun = m_distTotal = 0;
     m_kissState = STATE_STOPPED;
 }
+
+// ----------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------------
+
+uint16_t kissStepper::getTopSpeed(void)
+{
+    if (m_topSpeedStepInterval > 0)
+        return ONE_SECOND / m_topSpeedStepInterval;
+    else
+        return 0;
+}
