@@ -54,144 +54,173 @@ void speedProfiles(void)
 {
 
     bool failed = false;
-    Serial.println(F("Testing generated speed profiles against basic rules...\n"));
+    Serial.println(F("Testing generated speed profiles...\n"));
 
-    uint8_t dist, speed, accel;
-    uint32_t totalDistA, accelDist, runDist, decelDist, totalDistB, maxAccelDist;
-
+    uint16_t speed, accel, dist, topSpeed;
+    int16_t delta;
+    uint32_t totalDistA, accelDist, runDist, decelDist, totalDistB, maxAccelDist, accDecDiff;
     int32_t prevPos = mot.getPos();
+    uint32_t lastTime = millis();
+    uint16_t updateInterval = 500;
+    uint8_t updateMultiple = 20;
+    uint8_t updateCounter = 1;
+    float accelTime, runTime, decelTime;
 
-    for (speed = 0; speed < 50; speed++)
+    // set random seed
+    randomSeed(analogRead(0));
+    
+    uint32_t i=0;
+    while(true)
     {
-
+        i++;
+        // set random speed, accel, and delta
+        speed = random(1,65535);
+        accel = random(1,65535);
+        delta = random(-32767,32767);
+        dist = (delta > 0) ? delta : -delta;
+        
+        // prepare the movement
+        mot.stop();
         mot.setMaxSpeed(speed);
+        mot.setAccel(accel);
+        mot.setPos(0);
+        mot.prepareMove(delta);
+        
+        topSpeed = mot.getTopSpeed();
+        maxAccelDist = mot.calcMaxAccelDist();
+        totalDistA = mot.getDistRemaining();
+        accelDist = mot.getAccelDist();
+        runDist = mot.getRunDist();
+        decelDist = mot.getDecelDist();
+        totalDistB = accelDist + runDist + decelDist;
+        accDecDiff = (accelDist > decelDist) ? (accelDist - decelDist) : (decelDist - accelDist);
 
-        for (accel = 0; accel < 50; accel++)
+        accelTime = accelDist / (topSpeed / 2.0);
+        decelTime = decelDist / (topSpeed / 2.0);
+        runTime = runDist / (float)topSpeed;
+        
+        if (totalDistA != totalDistB)
         {
+            Serial.println(F("\n\ngetDistRemaining() != accelDist+runDist+decelDist"));
+            failed = true;
+        }
 
-            mot.setAccel(accel);
-            maxAccelDist = mot.calcMaxAccelDist();
+        if (totalDistA != dist)
+        {
+            Serial.println(F("\n\ngetDistRemaining() != distance to target"));
+            failed = true;
+        }
 
-            for (dist = 0; dist < 50; dist++)
+        if ((accel == 0) && (accelDist != 0))
+        {
+            Serial.println(F("\n\nUnexpected acceleration distance"));
+            failed = true;
+        }
+
+        if ((accel == 0) && (decelDist != 0))
+        {
+            Serial.println(F("\n\nUnexpected deceleration distance"));
+            failed = true;
+        }
+
+        if (accDecDiff > 1)
+        {
+            Serial.println(F("\n\nDifference between acceleration and deceleration distance is too large"));
+            failed = true;
+        }
+
+        if ((maxAccelDist > 0) && (dist > 0) && ((accelDist + decelDist) == 0))
+        {
+            Serial.println(F("\n\nUnexpected lack of acceleration or deceleration"));
+            failed = true;
+        }
+
+        if ((maxAccelDist*2 > dist) && (runDist > 0))
+        {
+            Serial.println(F("\n\nUnexpected positive run distance (expected triangular speed profile)"));
+            failed = true;
+        }
+
+        if ((runDist > 0) && ((accelDist + decelDist) != maxAccelDist*2))
+        {
+            Serial.println(F("\n\nUnexpectedly large run distance, small accel+decel distance"));
+            failed = true;
+        }
+
+        uint32_t curTime = millis();
+        if ((curTime - lastTime >= updateInterval) || (failed))
+        {
+            
+            Serial.print(F("-"));
+            
+            if (updateCounter == updateMultiple)
             {
-
-                mot.stop();
-                mot.setPos(0);
-                mot.prepareMove(dist);
-
-                totalDistA = mot.getDistRemaining();
-                accelDist = mot.getAccelDist();
-                runDist = mot.getRunDist();
-                decelDist = mot.getDecelDist();
-                totalDistB = accelDist + runDist + decelDist;
-
-                if (totalDistA != totalDistB)
-                {
-                    Serial.println(F("\n\ngetDistRemaining() != accelDist+runDist+decelDist"));
-                    failed = true;
-                }
-
-                if (speed != 0)
-                {
-
-                    if (totalDistA != dist)
-                    {
-                        Serial.println(F("\n\ngetDistRemaining() != distance to target"));
-                        failed = true;
-                    }
-
-                    if ((accel == 0) && (accelDist != 0))
-                    {
-                        Serial.println(F("\n\nUnexpected acceleration distance"));
-                        failed = true;
-                    }
-
-                    if ((accel == 0) && (decelDist != 0))
-                    {
-                        Serial.println(F("\n\nUnexpected deceleration distance"));
-                        failed = true;
-                    }
-
-                    if ((accelDist > decelDist) && ((accelDist - decelDist) > 1))
-                    {
-                        Serial.println(F("\n\nDifference between acceleration and deceleration distance is too large"));
-                        failed = true;
-                    }
-
-                    if ((accelDist < decelDist) && ((decelDist - accelDist) > 1))
-                    {
-                        Serial.println(F("\n\nDifference between acceleration and deceleration distance is too large"));
-                        failed = true;
-                    }
-
-                    if ((maxAccelDist > 0) && (dist > 0) && ((accelDist + decelDist) == 0))
-                    {
-                        Serial.println(F("\n\nUnexpected lack of acceleration or deceleration"));
-                        failed = true;
-                    }
-
-                    if ((maxAccelDist*2 > dist) && (runDist > 0))
-                    {
-                        Serial.println(F("\n\nUnexpected positive run distance (expected triangular speed profile)"));
-                        failed = true;
-                    }
-
-                    if ((runDist > 0) && ((accelDist + decelDist) != maxAccelDist*2))
-                    {
-                        Serial.println(F("\n\nUnexpectedly large run distance, small accel+decel distance"));
-                        failed = true;
-                    }
-                }
-                else
-                {
-
-                    if ((totalDistA + totalDistB) > 0)
-                    {
-                        Serial.println(F("\n\nSpeed is zero, but speed profile distance is not zero"));
-                        failed = true;
-                    }
-
-                    if (maxAccelDist > 0)
-                    {
-                        Serial.println(F("\n\nSpeed is zero, but calcMaxAccelDist() returns a positive number"));
-                        failed = true;
-                    }
-                }
-
-                if (failed) break;
+                Serial.print(F("\n\nTEST "));
+                Serial.println(String(i));
+                
+                Serial.print(F("Delta: "));
+                Serial.println(String(delta));
+                
+                Serial.print(F("Absolute distance: "));
+                Serial.println(String(dist));
+                
+                Serial.print(F("Distance by getDistRemaining(): "));
+                Serial.println(String(totalDistA));
+                
+                Serial.print(F("Distance by sum: "));
+                Serial.println(String(totalDistB));
+                
+                Serial.print(F("Max Speed: "));
+                Serial.print(String(speed));
+                Serial.println(F(" Hz"));
+                
+                Serial.print(F("Top Speed (without correction): "));
+                Serial.print(String(topSpeed));
+                Serial.println(F(" Hz"));
+                
+                Serial.print(F("Accel/decel: "));
+                Serial.print(String(accel));
+                Serial.println(F(" Hz/s"));
+                
+                Serial.print(F("calcMaxAccelDist(): "));
+                Serial.println(String(maxAccelDist));
+                
+                Serial.print(F("Accel distance: "));
+                Serial.println(String(accelDist));
+                
+                Serial.print(F("Run distance: "));
+                Serial.println(String(runDist));
+                
+                Serial.print(F("Decel distance: "));
+                Serial.println(String(decelDist));
+                
+                Serial.print(F("Accel time (s): "));
+                Serial.println(accelTime,10);
+                
+                Serial.print(F("Run time (s): "));
+                Serial.println(runTime,10);
+                
+                Serial.print(F("Decel time (s): "));
+                Serial.println(decelTime,10);
+                
+                Serial.print(F("Move time (s): "));
+                Serial.println((accelTime + runTime + decelTime),10);
+                
+                updateCounter = 0;
+                
+                Serial.print(F("\n"));
+                
             }
-            if (failed) break;
+            
+            updateCounter++;
+            lastTime += updateInterval;
         }
         if (failed) break;
-        Serial.print(F("."));
+
     }
 
     if (failed)
-    {
-        Serial.println(F("\n\nThe above error(s) apply to this profile:"));
-        Serial.print(F("Targeted distance: "));
-        Serial.println(String(dist));
-        Serial.print(F("Max Speed: "));
-        Serial.print(String(speed));
-        Serial.println(F(" Hz"));
-        Serial.print(F("Accel/decel: "));
-        Serial.print(String(accel));
-        Serial.println(F(" Hz/s"));
-        Serial.print(F("Distance by getDistRemaining(): "));
-        Serial.println(String(totalDistA));
-        Serial.print(F("Distance by sum: "));
-        Serial.println(String(totalDistB));
-        Serial.print(F("calcMaxAccelDist(): "));
-        Serial.println(String(maxAccelDist));
-        Serial.print(F("Accel distance: "));
-        Serial.println(String(accelDist));
-        Serial.print(F("Run distance: "));
-        Serial.println(String(runDist));
-        Serial.print(F("Decel distance: "));
-        Serial.println(String(decelDist));
-    }
-    else
-        Serial.println(F("\n\nAll tests completed successfully."));
+        Serial.println(F("\n\nAN ERRROR OCCURRED IN THE ABOVE PROFILE"));
 
     mot.stop();
     mot.setPos(prevPos);
