@@ -255,6 +255,9 @@ bool kissStepper::prepareMove(int32_t target)
         if ((target != m_pos) && (m_maxSpeed > 0))
         {
 
+            float minSpeed;
+            uint16_t topSpeed;
+    
             // enable the motor controller if necessary
             if (!m_enabled) enable();
 
@@ -264,59 +267,52 @@ bool kissStepper::prepareMove(int32_t target)
             // set initial state
             m_kissState = STATE_STARTING;
             
-            // calculations for the step interval at max speed
-            uint32_t maxSpeedStepInterval = ONE_SECOND / m_maxSpeed;
-            m_stepIntervalRemainder = ONE_SECOND % m_maxSpeed;
-            m_stepIntervalCorrectionCounter = 0;
-
             // calculate total distance
             m_distTotal = (target > m_pos) ? (target - m_pos) : (m_pos - target);
 
-            // split the total distance across accel, run, and decel
-            if (m_accel != 0)
+            // calculate distance for accel/decel
+            // this is the distance of accel/decel between 0 st/s and maxSpeed
+            uint32_t maxAccelDist = calcMaxAccelDist();
+
+            // if maxAccelDist >= half the total distance, use a triangular speed profile (accelerate then decelerate)
+            // otherwise use a trapezoidal profile (accelerate, then run, then decelerate)
+            if ((maxAccelDist >= (m_distTotal / 2)) && (m_accel > 0))
             {
-
-                // calculate distance for accel/decel
-                // this is the distance of accel/decel between 0 st/s and maxSpeed
-                uint32_t maxAccelDist = calcMaxAccelDist();
-
-                // if maxAccelDist >= half the total distance, use a triangular speed profile (accelerate then decelerate)
-                // otherwise use a trapezoidal profile (accelerate, then run, then decelerate)
-                if (maxAccelDist >= (m_distTotal / 2))
-                {
-                    m_distAccel = m_distTotal / 2;
-                    m_distRun = m_distAccel;
-                }
-                else
-                {
-                    m_distAccel = maxAccelDist;
-                    m_distRun = m_distTotal - m_distAccel;
-                }
-
-                // calculate constant multiplier
-                m_constMult = ((float)m_accel / ONE_SECOND) / ONE_SECOND;
-
-                // calculate step interval at min speed (initial step delay)
-                // min speed stepInterval = ONE_SECOND / sqrt(V0^2 + 2a)
-                // because initial velocity is 0:
-                // min speed stepInterval = ONE_SECOND / sqrt(2a)
-                // range of this calculation is 2762 to 707106
-                m_stepIntervalWhole = m_stepInterval = ONE_SECOND / sqrt(2.0 * m_accel);
-
-                // calculate step interval at top speed
-                m_topSpeedStepInterval = maxSpeedStepInterval;
-
+                // triangular profile, top speed is likely to be different than max speed
+                m_distAccel = m_distTotal / 2;
+                m_distRun = m_distAccel;
+                
+                // displacement equation: d = a*t*t / 2; t = sqrt(2*d / a)
+                // topSpeed = a*t = a * sqrt(2d/a)
+                topSpeed = m_accel * sqrt((2.0 * m_distAccel) / m_accel);
             }
             else
             {
-                // no acceleration or deceleration
-                m_distAccel = 0;
-                m_distRun = m_distTotal;
-
-                // if not accelerating, start motor at full speed
-                // don't need to set float version of stepInterval since it isn't used during run
-                m_stepIntervalWhole = maxSpeedStepInterval;
+                // trapezoidal or flat profile, top speed will be equal to max speed
+                m_distAccel = maxAccelDist;
+                m_distRun = m_distTotal - m_distAccel;
+                topSpeed = m_maxSpeed;
             }
+
+            // calculate constant multiplier
+            m_constMult = ((float)m_accel / ONE_SECOND) / ONE_SECOND;
+
+            // calculate min speed (for initial step delay)
+            // min speed = sqrt(V0^2 + 2a)
+            // because initial velocity is 0:
+            // min speed = sqrt(2a)
+            if (m_accel > 0)
+                minSpeed = sqrt(2.0 * m_accel);
+            else
+                minSpeed = m_maxSpeed;
+            
+            // calculate step interval at top speed
+            m_topSpeedStepInterval = ONE_SECOND / topSpeed;
+            m_stepIntervalRemainder = ONE_SECOND % topSpeed;
+            m_stepIntervalCorrectionCounter = 0;
+            
+            // calculate step interval at min speed (initial step delay)
+            m_stepIntervalWhole = m_stepInterval = ONE_SECOND / minSpeed;
 
             return true;
         }
