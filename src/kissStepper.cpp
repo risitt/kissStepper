@@ -225,7 +225,7 @@ kissStepper::kissStepper(uint8_t PIN_DIR, uint8_t PIN_STEP, uint8_t PIN_ENABLE) 
     kissStepperNoAccel(PIN_DIR, PIN_STEP, PIN_ENABLE),
     m_distAccel(0),
     m_distRun(0),
-    m_maxSpeedStepInterval(0),
+    m_topSpeedStepInterval(0),
     m_stepInterval(0),
     m_constMult(0),
     m_accel(DEFAULT_ACCEL)
@@ -303,8 +303,8 @@ bool kissStepper::prepareMove(int32_t target)
                 // range of this calculation is 2762 to 707106
                 m_stepIntervalWhole = m_stepInterval = ONE_SECOND / sqrt(2.0 * m_accel);
 
-                // calculate step interval at max speed
-                m_maxSpeedStepInterval = maxSpeedStepInterval;
+                // calculate step interval at top speed
+                m_topSpeedStepInterval = maxSpeedStepInterval;
 
             }
             else
@@ -393,8 +393,8 @@ kissState_t kissStepper::move(void)
                     if (m_distRun != m_distAccel)
                     {
                         m_kissState = STATE_RUN;
-                        // set stepInterval to maxSpeedStepInterval when entering run
-                        m_stepInterval = m_stepIntervalWhole = m_maxSpeedStepInterval;
+                        // set stepInterval to topSpeedStepInterval when entering run
+                        m_stepInterval = m_stepIntervalWhole = m_topSpeedStepInterval;
                     }
                     else
                     {

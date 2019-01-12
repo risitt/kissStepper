@@ -240,7 +240,7 @@ protected:
 
     static const uint16_t DEFAULT_ACCEL = 1600;
     uint32_t m_distAccel, m_distRun;
-    uint32_t m_maxSpeedStepInterval;
+    uint32_t m_topSpeedStepInterval;
     float m_stepInterval;
     float m_constMult;
     uint16_t m_accel;
