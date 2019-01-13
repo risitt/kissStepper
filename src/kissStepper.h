@@ -269,20 +269,26 @@ private:
                set q to negative if accelerating
 
                good precision, fast: stepInterval *= 1.0 + q
-               better precision, slower: stepInterval *= 1.0 + q*(1.0 + q)
-               best precision, slowest: stepInterval *= 1.0 + q*(1.0 + 1.5*q)
+               better precision, slower: stepInterval *= 1.0 + q + q*q
+               best precision, slowest: stepInterval *= 1.0 + q + 1.5*q*q
 
        ----------------------------------------------------------------------------------------------------
        */
 
     float accelStep(float stepInterval, float constMult)
     {
-        return stepInterval * (1.0 - (constMult*stepInterval*stepInterval));
+        float q = -constMult*stepInterval*stepInterval;
+        return stepInterval * (1.0 + q);
+        // return stepInterval * (1.0 + q + q*q); // better accuracy
+        // return stepInterval * (1.0 + q + 1.5*q*q); // best accuracy
     }
 
     float decelStep(float stepInterval, float constMult)
     {
-        return stepInterval * (1.0 + (constMult*stepInterval*stepInterval));
+        float q = constMult*stepInterval*stepInterval;
+        return stepInterval * (1.0 + q);
+        // return stepInterval * (1.0 + q + q*q); // better accuracy
+        // return stepInterval * (1.0 + q + 1.5*q*q); // best accuracy (doesn't work for decel, investigate why)
     }
 
 };
