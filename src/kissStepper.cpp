@@ -399,7 +399,10 @@ kissState_t kissStepper::move(void)
                     }
                 }
                 else
+                {
                     m_stepIntervalWhole = m_stepInterval = accelStep(m_stepInterval, m_constMult);
+                    if (m_stepIntervalWhole < m_topSpeedStepInterval) m_stepInterval = m_stepIntervalWhole = m_topSpeedStepInterval;
+                }
             }
             else
             {
