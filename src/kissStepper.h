@@ -242,6 +242,7 @@ protected:
     static const uint16_t DEFAULT_ACCEL = 1600;
     uint32_t m_distAccel, m_distRun;
     uint32_t m_topSpeedStepInterval;
+    uint32_t m_minSpeedStepInterval;
     float m_stepInterval;
     float m_constMult;
     uint16_t m_accel;
@@ -277,18 +278,24 @@ private:
 
     float accelStep(float stepInterval, float constMult)
     {
+        float newStepInterval;
         float q = -constMult*stepInterval*stepInterval;
-        return stepInterval * (1.0 + q);
-        // return stepInterval * (1.0 + q + q*q); // better accuracy
-        // return stepInterval * (1.0 + q + 1.5*q*q); // best accuracy
+        newStepInterval = stepInterval * (1.0 + q);
+        // newStepInterval = stepInterval * (1.0 + q + q*q); // better accuracy
+        // newStepInterval = stepInterval * (1.0 + q + 1.5*q*q); // best accuracy
+        if (newStepInterval < m_topSpeedStepInterval) newStepInterval = m_topSpeedStepInterval;
+        return newStepInterval;
     }
 
     float decelStep(float stepInterval, float constMult)
     {
+        float newStepInterval;
         float q = constMult*stepInterval*stepInterval;
-        return stepInterval * (1.0 + q);
-        // return stepInterval * (1.0 + q + q*q); // better accuracy
-        // return stepInterval * (1.0 + q + 1.5*q*q); // best accuracy (doesn't work for decel, investigate why)
+        newStepInterval = stepInterval * (1.0 + q);
+        // newStepInterval = stepInterval * (1.0 + q + q*q); // better accuracy
+        // newStepInterval = stepInterval * (1.0 + q + 1.5*q*q); // best accuracy
+        if (newStepInterval > m_minSpeedStepInterval) newStepInterval = m_minSpeedStepInterval;
+        return newStepInterval;
     }
 
 };

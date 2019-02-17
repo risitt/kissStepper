@@ -226,6 +226,7 @@ kissStepper::kissStepper(uint8_t PIN_DIR, uint8_t PIN_STEP, uint8_t PIN_ENABLE) 
     m_distAccel(0),
     m_distRun(0),
     m_topSpeedStepInterval(0),
+    m_minSpeedStepInterval(0),
     m_stepInterval(0),
     m_constMult(0),
     m_accel(DEFAULT_ACCEL)
@@ -312,8 +313,8 @@ bool kissStepper::prepareMove(int32_t target)
             m_stepIntervalCorrectionCounter = 0;
             
             // calculate step interval at min speed (initial step delay)
-            m_stepIntervalWhole = m_stepInterval = ONE_SECOND / minSpeed;
-
+            m_minSpeedStepInterval = m_stepIntervalWhole = m_stepInterval = ONE_SECOND / minSpeed;
+            
             return true;
         }
     }
@@ -399,10 +400,7 @@ kissState_t kissStepper::move(void)
                     }
                 }
                 else
-                {
                     m_stepIntervalWhole = m_stepInterval = accelStep(m_stepInterval, m_constMult);
-                    if (m_stepIntervalWhole < m_topSpeedStepInterval) m_stepInterval = m_stepIntervalWhole = m_topSpeedStepInterval;
-                }
             }
             else
             {
