@@ -43,7 +43,8 @@ enum kissState_t: uint8_t
 class kissStepperNoAccel
 {
 public:
-    kissStepperNoAccel(uint8_t PIN_DIR, uint8_t PIN_STEP, uint8_t PIN_ENABLE = 255);
+    kissStepperNoAccel(uint8_t PIN_DIR, uint8_t PIN_STEP, uint8_t PIN_ENABLE = 255, bool invertDir = false);
+    kissStepperNoAccel(uint8_t PIN_DIR, uint8_t PIN_STEP, bool invertDir = false);
     ~kissStepperNoAccel(void) {};
 
     bool prepareMove(int32_t target);
@@ -127,7 +128,7 @@ protected:
     void setDir(bool forwards)
     {
         m_forwards = forwards;
-        digitalWrite(PIN_DIR, (forwards ? LOW : HIGH));
+        digitalWrite(PIN_DIR, forwards == m_invertDir);
     }
     void updatePos(void)
     {
@@ -161,6 +162,8 @@ protected:
     const uint8_t PIN_STEP;
     const uint8_t PIN_ENABLE;
 
+    bool m_invertDir;
+
     kissState_t m_kissState;
     uint32_t m_distTotal, m_distMoved;
     bool m_forwards;
@@ -187,7 +190,8 @@ protected:
 class kissStepper: public kissStepperNoAccel
 {
 public:
-    kissStepper(uint8_t PIN_DIR, uint8_t PIN_STEP, uint8_t PIN_ENABLE = 255);
+    kissStepper(uint8_t PIN_DIR, uint8_t PIN_STEP, uint8_t PIN_ENABLE = 255, bool invertDir = false);
+    kissStepper(uint8_t PIN_DIR, uint8_t PIN_STEP, bool invertDir = false);
     ~kissStepper(void) {};
     bool prepareMove(int32_t target);
     kissState_t move(void);
