@@ -162,8 +162,6 @@ protected:
     const uint8_t PIN_STEP;
     const uint8_t PIN_ENABLE;
 
-    bool m_invertDir;
-
     kissState_t m_kissState;
     uint32_t m_distTotal, m_distMoved;
     bool m_forwards;
@@ -176,6 +174,7 @@ protected:
     uint16_t m_stepIntervalCorrectionCounter;
     bool m_enabled;
     uint32_t m_lastStepTime;
+    bool m_invertDir;
     bool m_init;
 };
 
