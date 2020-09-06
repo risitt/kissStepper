@@ -283,7 +283,7 @@ void loop(void)
             if (command == "speed") speedTest();
             else if (command == "states") states();
             else if (command == "limits") limits();
-            else if (command = "menu") menuPrinted = false;
+            else if (command == "menu") menuPrinted = false;
             command = "";
         }
         else if (commandIn) command += c;
