@@ -20,6 +20,20 @@ Acceleration approximation math is based on Aryeh Eiderman's "Real Time Stepper 
 
 #include <Arduino.h>
 
+// determine port register size
+#if defined(__AVR__) || defined(__avr__)
+	typedef uint8_t regint;
+#elif defined(TEENSYDUINO)
+	#if defined(__AVR_ATmega32U4__) || defined(__AVR_AT90USB1286__) || defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
+		typedef uint8_t regint;
+	#else
+		typedef uint32_t regint;
+	#endif
+#else
+	typedef uint32_t regint;
+#endif
+
+
 // the order of enums allows some simple tests:
 // if > STATE_STARTING, motor is in motion
 // if > STATE_RUN, motor is accelerating or decelerating
@@ -138,16 +152,7 @@ protected:
         m_distMoved = 0;
     }
     static const uint32_t ONE_SECOND = 1000000UL;
-
-    // F_CPU / ONE_SECOND will give number of cycles in 1 us
-    // Multiply by PULSE_WIDTH_US to get number of cycles for a pulse
-    // Subtract 6 to account for the number of cycles between setting port high and low (between st instructions)
-    // Divide by 3 to get number of loops of _delay_loop_1 needed
     static const uint8_t PULSE_WIDTH_US = 2; // desired width of step pulse (high) in us
-    static const uint8_t PULSE_WIDTH_CYCLES = (F_CPU / ONE_SECOND) * PULSE_WIDTH_US;
-    static const uint8_t STEP_RESET_CYCLES = 6; // number of cycles in between step high and low minus busy wait (measured with logic analyser)
-    static const uint8_t PULSE_WIDTH_LOOP_COUNT = ((PULSE_WIDTH_CYCLES - STEP_RESET_CYCLES) / 3) + 1; // cycles for width of step pulse
-
     static const int32_t DEFAULT_FORWARD_LIMIT = 2147483647L;
     static const int32_t DEFAULT_REVERSE_LIMIT = -2147483648L;
     static const uint16_t DEFAULT_SPEED = 1600;
@@ -166,8 +171,9 @@ protected:
     bool m_forwards;
     int32_t m_pos;
 
-    const uint8_t m_stepBit;
-    uint8_t volatile * const m_stepOut;
+	const regint m_stepBit;
+    regint volatile * const m_stepOut;
+	
     uint32_t m_stepIntervalWhole;
     uint16_t m_stepIntervalRemainder;
     uint16_t m_stepIntervalCorrectionCounter;

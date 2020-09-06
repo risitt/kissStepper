@@ -22,9 +22,6 @@ Optimization notes:
 */
 
 #include "kissStepper.h"
-#ifndef TEENSYDUINO
-#include <util/delay_basic.h>
-#endif
 
 // ----------------------------------------------------------------------------------------------------
 // ----------------------------------------------------------------------------------------------------
@@ -175,16 +172,11 @@ kissState_t kissStepperNoAccel::move(void)
                 Allegro A3967, A4983, A4988: 1 us minimum
                 TI DRV8825: 1.9 us minimum
             */
-            cli();
-            uint8_t oldStepOut = *m_stepOut;
+            noInterrupts();
             *m_stepOut |= m_stepBit;
-#ifdef TEENSYDUINO
-            delayMicroseconds(PULSE_WIDTH_US);
-#else
-            _delay_loop_1(PULSE_WIDTH_LOOP_COUNT); // busy wait
-#endif
-            *m_stepOut = oldStepOut;
-            sei();
+			delayMicroseconds(PULSE_WIDTH_US); // busy wait
+			*m_stepOut ^= m_stepBit;
+            interrupts();
 
             // adjust position
             m_distMoved++;
@@ -349,16 +341,13 @@ kissState_t kissStepper::move(void)
                 Allegro A3967, A4983, A4988: 1 us minimum
                 TI DRV8825: 1.9 us minimum
             */
-            cli();
-            uint8_t oldStepOut = *m_stepOut;
+            noInterrupts();
+            //uint8_t oldStepOut = *m_stepOut;
             *m_stepOut |= m_stepBit;
-#ifdef TEENSYDUINO
-            delayMicroseconds(PULSE_WIDTH_US);
-#else
-            _delay_loop_1(PULSE_WIDTH_LOOP_COUNT); // busy wait
-#endif
-            *m_stepOut = oldStepOut;
-            sei();
+			delayMicroseconds(PULSE_WIDTH_US); // busy wait
+			*m_stepOut ^= m_stepBit;
+            //*m_stepOut = oldStepOut;
+            interrupts();
 
             // adjust position
             m_distMoved++;
