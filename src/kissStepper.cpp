@@ -31,7 +31,7 @@ Optimization notes:
 // ----------------------------------------------------------------------------------------------------
 // ----------------------------------------------------------------------------------------------------
 
-kissStepperNoAccel::kissStepperNoAccel(uint8_t PIN_DIR, uint8_t PIN_STEP, uint8_t PIN_ENABLE) :
+kissStepperNoAccel::kissStepperNoAccel(uint8_t PIN_DIR, uint8_t PIN_STEP, uint8_t PIN_ENABLE, bool invertDir) :
     m_forwardLimit(DEFAULT_FORWARD_LIMIT),
     m_reverseLimit(DEFAULT_REVERSE_LIMIT),
     m_maxSpeed(DEFAULT_SPEED),
@@ -50,8 +50,11 @@ kissStepperNoAccel::kissStepperNoAccel(uint8_t PIN_DIR, uint8_t PIN_STEP, uint8_
     m_stepIntervalCorrectionCounter(0),
     m_enabled(false),
     m_lastStepTime(0),
+    m_invertDir(invertDir),
     m_init(false)
 {}
+
+kissStepperNoAccel::kissStepperNoAccel(uint8_t PIN_DIR, uint8_t PIN_STEP, bool invertDir) : kissStepperNoAccel(PIN_DIR, PIN_STEP, 255, invertDir) {}
 
 // ----------------------------------------------------------------------------------------------------
 // Initialize the motor in a default state
@@ -67,13 +70,13 @@ void kissStepperNoAccel::begin(void)
 
     // initial STEP pin state
     digitalWrite(PIN_STEP, LOW);
-    
+
     // set to move forwards (DIR pin low)
     setDir(true);
 
     // start with motor controller disabled
     disable();
-    
+
     m_init = true;
 
 }
@@ -103,9 +106,9 @@ void kissStepperNoAccel::disable(void)
 
 bool kissStepperNoAccel::prepareMove(int32_t target)
 {
-    
+
     if (!m_init) begin();
-    
+
     // only continue if not already moving
     if (m_kissState == STATE_STOPPED)
     {
@@ -157,7 +160,7 @@ kissState_t kissStepperNoAccel::move(void)
 
             // increment lastStepTime
             m_lastStepTime += m_stepIntervalWhole;
-            
+
             // correct lastStepTime
             if (m_stepIntervalCorrectionCounter < m_stepIntervalRemainder) m_lastStepTime++;
             m_stepIntervalCorrectionCounter += INTERVAL_CORRECTION_INCREMENT;
@@ -213,8 +216,8 @@ void kissStepperNoAccel::stop(void)
 // ----------------------------------------------------------------------------------------------------
 // ----------------------------------------------------------------------------------------------------
 
-kissStepper::kissStepper(uint8_t PIN_DIR, uint8_t PIN_STEP, uint8_t PIN_ENABLE) :
-    kissStepperNoAccel(PIN_DIR, PIN_STEP, PIN_ENABLE),
+kissStepper::kissStepper(uint8_t PIN_DIR, uint8_t PIN_STEP, uint8_t PIN_ENABLE, bool invertDir) :
+    kissStepperNoAccel(PIN_DIR, PIN_STEP, PIN_ENABLE, invertDir),
     m_distAccel(0),
     m_distRun(0),
     m_topSpeedStepInterval(0),
@@ -223,6 +226,8 @@ kissStepper::kissStepper(uint8_t PIN_DIR, uint8_t PIN_STEP, uint8_t PIN_ENABLE) 
     m_constMult(0),
     m_accel(DEFAULT_ACCEL)
 {}
+
+kissStepper::kissStepper(uint8_t PIN_DIR, uint8_t PIN_STEP, bool invertDir) : kissStepper(PIN_DIR, PIN_STEP, 255, invertDir) {}
 
 /* ----------------------------------------------------------------------------------------------------
 Does some basic checks, enforces limits, calculates the step interval, and switches to STATE_STARTING.
@@ -235,9 +240,9 @@ The values are the cumulative number of step pin pulses produced before it's tim
 
 bool kissStepper::prepareMove(int32_t target)
 {
-    
+
     if (!m_init) begin();
-    
+
     // only continue if not already moving
     if (m_kissState == STATE_STOPPED)
     {
@@ -250,7 +255,7 @@ bool kissStepper::prepareMove(int32_t target)
 
             float minSpeed;
             uint16_t topSpeed;
-    
+
             // enable the motor controller if necessary
             if (!m_enabled) enable();
 
@@ -259,7 +264,7 @@ bool kissStepper::prepareMove(int32_t target)
 
             // set initial state
             m_kissState = STATE_STARTING;
-            
+
             // calculate total distance
             m_distTotal = (target > m_pos) ? (target - m_pos) : (m_pos - target);
 
@@ -274,7 +279,7 @@ bool kissStepper::prepareMove(int32_t target)
                 // triangular profile, top speed is likely to be different than max speed
                 m_distAccel = m_distTotal / 2;
                 m_distRun = m_distAccel;
-                
+
                 // displacement equation: d = a*t*t / 2; t = sqrt(2*d / a)
                 // topSpeed = a*t = a * sqrt(2d/a)
                 topSpeed = m_accel * sqrt((2.0 * m_distAccel) / m_accel);
@@ -298,15 +303,15 @@ bool kissStepper::prepareMove(int32_t target)
                 minSpeed = sqrt(2.0 * m_accel);
             else
                 minSpeed = m_maxSpeed;
-            
+
             // calculate step interval at top speed
             m_topSpeedStepInterval = ONE_SECOND / topSpeed;
             m_stepIntervalRemainder = ONE_SECOND % topSpeed;
             m_stepIntervalCorrectionCounter = 0;
-            
+
             // calculate step interval at min speed (initial step delay)
             m_minSpeedStepInterval = m_stepIntervalWhole = m_stepInterval = ONE_SECOND / minSpeed;
-            
+
             return true;
         }
     }
@@ -355,11 +360,11 @@ kissState_t kissStepper::move(void)
             // progress through speed profile
             if (m_kissState == STATE_RUN)
             {
-                
+
                 // correct lastStepTime
                 if (m_stepIntervalCorrectionCounter < m_stepIntervalRemainder) m_lastStepTime++;
                 m_stepIntervalCorrectionCounter += INTERVAL_CORRECTION_INCREMENT;
-                
+
                 if (m_distMoved == m_distRun)
                 {
                     if (m_distTotal == m_distRun)
